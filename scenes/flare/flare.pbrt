@@ -1,0 +1,59 @@
+Integrator "path"
+    "integer maxdepth" [ 65 ]
+    
+Transform [ 1 0 0 0  0 1 0 0  0 0 1 0  0 0 -1 1 ]
+
+Sampler "sobol"
+    "integer pixelsamples" [ 1000000000  ] 
+
+PixelFilter "gaussian"
+    "float xradius" [ 1.5 ]
+    "float yradius" [ 1.5 ]
+
+Film "rgb"
+    "string filename" [ "flare.png" ]
+    "integer yresolution" [ 720 ]
+    "integer xresolution" [ 1280 ]
+
+Camera "spectralrealistic"
+    "string lensfile" [ "../lenses/dgauss.50mm.dat" ]
+    "float aperturediameter" [ 17.1 ] 
+    "float focusdistance" [ 10.0 ]
+
+WorldBegin
+
+# LIGHT 1: THE "SUN"
+# Top-Right, Far away, Extremely bright white.
+# This should produce the primary diagonal chain of ghosts.
+AttributeBegin
+    Translate 1.5 1.0 10.0 
+    AreaLightSource "diffuse"
+        # Intensity is very high (50,000) to ensure the 
+        # ~1% reflection is visible.
+        "rgb L" [ 50000 50000 50000 ] 
+    # Small sphere to act as a point-like source
+    Shape "sphere" "float radius" [ 0.05 ]
+AttributeEnd
+
+# LIGHT 2: THE "LASER"
+# Bottom-Left, Closer, Intense Green/Teal.
+AttributeBegin
+    Translate -2.0 -1.5 6.0
+    AreaLightSource "diffuse"
+        "rgb L" [ 200 10000 5000 ] 
+    Shape "sphere" "float radius" [ 0.05 ]
+AttributeEnd
+
+# ---------------------------------------------------------
+# LIGHT 3: THE "EDGE TEST"
+# Far Left edge. Tests vignetting and edge-cutting of ghosts.
+# ---------------------------------------------------------
+AttributeBegin
+    Translate -3.5 0.0 8.0
+    AreaLightSource "diffuse"
+        "rgb L" [ 5000 200 200 ] # Red
+    Shape "sphere" "float radius" [ 0.05 ]
+AttributeEnd
+
+# No geometry. We want a black void so reflected ghosts 
+# are the only thing visible.

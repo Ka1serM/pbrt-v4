@@ -1,8 +1,8 @@
 Integrator "path"
-    "integer maxdepth" [ 7 ]
+    "integer maxdepth" [ 65 ]
 Transform [ -0.730206 -0.151332 -0.666256 -0 7.45058e-9 0.975161 -0.221496 -0 -0.683227 0.161738 0.712069 -0 1.12447 -2.69387 11.0206 1  ]
 Sampler "sobol"
-    "integer pixelsamples" [ 64 ]
+    "integer pixelsamples" [ 1000000 ]
 PixelFilter "triangle"
     "float xradius" [ 1 ]
     "float yradius" [ 1 ]
@@ -127,7 +127,7 @@ Shape "plymesh"
 
 AttributeBegin
     AreaLightSource "diffuse"
-        "rgb L" [ 5 5 5 ]
+        "rgb L" [ 500 500 500 ]
     NamedMaterial "Emitter"
     Shape "plymesh"
         "string filename" [ "models/Mesh006.ply" ]
