@@ -33,7 +33,7 @@ class SpectralRealisticCamera;
 
 // Camera Definition
 class Camera : public TaggedPointer<PerspectiveCamera, OrthographicCamera,
-                                    SphericalCamera, RealisticCamera, SpectralRealisticCamera> {
+                                    SphericalCamera, RealisticCamera> {
   public:
     // Camera Interface
     using TaggedPointer::TaggedPointer;

@@ -462,6 +462,15 @@ struct ExitPupilSample {
     Float pdf;
 };
 
+// ReflectionPair Definition
+struct ReflectionPair {
+    int reflectFrom;
+    int reflectTo;
+
+    PBRT_CPU_GPU
+    ReflectionPair(const int from, const int to) : reflectFrom(from), reflectTo(to) {}
+};
+
 // RealisticCamera Definition
 class RealisticCamera : public CameraBase {
   public:
@@ -506,6 +515,9 @@ class RealisticCamera : public CameraBase {
 
     std::string ToString() const;
 
+    const int TOTAL_FLARE_SAMPLES = 1e10; // Total number of flare samples to trace
+    void RenderLensFlare(Film &film, const std::vector<Light> &lights, int samplesPerPixel);
+
   private:
     // RealisticCamera Private Declarations
     struct LensElementInterface {
@@ -514,6 +526,12 @@ class RealisticCamera : public CameraBase {
         Float eta;
         Float apertureRadius;
         std::string ToString() const;
+    };
+
+    struct FlareRay {
+        Ray ray;
+        SampledSpectrum intensity;
+        Float wavelength;
     };
 
     // RealisticCamera Private Methods
@@ -562,128 +580,17 @@ class RealisticCamera : public CameraBase {
     PBRT_CPU_GPU
     Float TraceLensesFromScene(const Ray &rCamera, Ray *rOut) const;
 
-    void DrawLensSystem() const;
-    void DrawRayPathFromFilm(const Ray &r, bool arrow, bool toOpticalIntercept) const;
-    void DrawRayPathFromScene(const Ray &r, bool arrow, bool toOpticalIntercept) const;
+    // Lens flare private methods
+    std::vector<ReflectionPair> GenerateReflectionEvents() const;
+    bool AdvanceRayThroughElement(Ray& ray, int elementIndex, Float frontZ,
+                                  const LensElementInterface* elements) const;
+    bool ReflectAtElement(Ray& ray, int elementIndex, Float frontZ,
+                          SampledSpectrum& intensity) const;
 
-    static void ComputeCardinalPoints(Ray rIn, Ray rOut, Float *p, Float *f);
-    void ComputeThickLensApproximation(Float pz[2], Float f[2]) const;
-    Float FocusThickLens(Float focusDistance);
-    Bounds2f BoundExitPupil(Float filmX0, Float filmX1) const;
-    void RenderExitPupil(Float sx, Float sy, const char *filename) const;
-
-    PBRT_CPU_GPU
-    pstd::optional<ExitPupilSample> SampleExitPupil(Point2f pFilm, Point2f uLens) const;
-
-    void TestExitPupilBounds() const;
-
-    // RealisticCamera Private Members
-    Bounds2f physicalExtent;
-    pstd::vector<LensElementInterface> elementInterfaces;
-    Image apertureImage;
-    pstd::vector<Bounds2f> exitPupilBounds;
-};
-
-// RealisticCamera Definition
-class SpectralRealisticCamera : public CameraBase {
-  public:
-    // RealisticCamera Public Methods
-    SpectralRealisticCamera(CameraBaseParameters baseParameters,
-                    std::vector<Float> &lensParameters, Float focusDistance,
-                    Float apertureDiameter, Image apertureImage, Allocator alloc);
-
-    static SpectralRealisticCamera *Create(const ParameterDictionary &parameters,
-                                   const CameraTransform &cameraTransform, Film film,
-                                   Medium medium, const FileLoc *loc,
-                                   Allocator alloc = {});
-
-    PBRT_CPU_GPU
-    pstd::optional<CameraRay> GenerateRay(CameraSample sample,
-                                          SampledWavelengths &lambda) const;
-
-    PBRT_CPU_GPU
-    pstd::optional<CameraRayDifferential> GenerateRayDifferential(
-        CameraSample sample, SampledWavelengths &lambda) const {
-        return CameraBase::GenerateRayDifferential(this, sample, lambda);
-    }
-
-    PBRT_CPU_GPU
-    SampledSpectrum We(const Ray &ray, SampledWavelengths &lambda,
-                       Point2f *pRaster2 = nullptr) const {
-        LOG_FATAL("We() unimplemented for RealisticCamera");
-        return {};
-    }
-
-    PBRT_CPU_GPU
-    void PDF_We(const Ray &ray, Float *pdfPos, Float *pdfDir) const {
-        LOG_FATAL("PDF_We() unimplemented for RealisticCamera");
-    }
-
-    PBRT_CPU_GPU
-    pstd::optional<CameraWiSample> SampleWi(const Interaction &ref, Point2f u,
-                                            SampledWavelengths &lambda) const {
-        LOG_FATAL("SampleWi() unimplemented for RealisticCamera");
-        return {};
-    }
-
-    std::string ToString() const;
-
-  private:
-    // RealisticCamera Private Declarations
-    struct LensElementInterface {
-        Float curvatureRadius;
-        Float thickness;
-        Float eta;
-        Float apertureRadius;
-        std::string ToString() const;
-    };
-
-    // RealisticCamera Private Methods
-    PBRT_CPU_GPU
-    Float LensRearZ() const { return elementInterfaces.back().thickness; }
-
-    PBRT_CPU_GPU
-    Float LensFrontZ() const {
-        Float zSum = 0;
-        for (const LensElementInterface &element : elementInterfaces)
-            zSum += element.thickness;
-        return zSum;
-    }
-
-    PBRT_CPU_GPU
-    Float RearElementRadius() const { return elementInterfaces.back().apertureRadius; }
-
-    PBRT_CPU_GPU
-    Float TraceLensesFromFilm(const Ray &rCamera, Ray *rOut) const;
-
-    PBRT_CPU_GPU
-    static bool IntersectSphericalElement(Float radius, Float zCenter, const Ray &ray,
-                                          Float *t, Normal3f *n) {
-        // Compute _t0_ and _t1_ for ray--element intersection
-        Point3f o = ray.o - Vector3f(0, 0, zCenter);
-        Float A = ray.d.x * ray.d.x + ray.d.y * ray.d.y + ray.d.z * ray.d.z;
-        Float B = 2 * (ray.d.x * o.x + ray.d.y * o.y + ray.d.z * o.z);
-        Float C = o.x * o.x + o.y * o.y + o.z * o.z - radius * radius;
-        Float t0, t1;
-        if (!Quadratic(A, B, C, &t0, &t1))
-            return false;
-
-        // Select intersection $t$ based on ray direction and element curvature
-        bool useCloserT = (ray.d.z > 0) ^ (radius < 0);
-        *t = useCloserT ? std::min(t0, t1) : std::max(t0, t1);
-        if (*t < 0)
-            return false;
-
-        // Compute surface normal of element at ray intersection point
-        *n = Normal3f(Vector3f(o + *t * ray.d));
-        *n = FaceForward(Normalize(*n), -ray.d);
-
-        return true;
-    }
-
-    PBRT_CPU_GPU
-    Float TraceLensesFromScene(const Ray &rCamera, Ray *rOut) const;
-
+    void TraceFlareRay(const Light& light,
+                       const std::vector<ReflectionPair> &reflectionEvents,
+                       int lightSampleIndex, int sampleIndex, Film &film);
+    
     void DrawLensSystem() const;
     void DrawRayPathFromFilm(const Ray &r, bool arrow, bool toOpticalIntercept) const;
     void DrawRayPathFromScene(const Ray &r, bool arrow, bool toOpticalIntercept) const;

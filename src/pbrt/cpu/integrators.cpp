@@ -211,6 +211,14 @@ void ImageTileIntegrator::Render() {
                 fflush(mseOutFile);
             }
             if (waveStart == spp || Options->writePartialImages) {
+                
+                // If we are using RealisticCamera, render the lens flares
+                if (camera.Is<RealisticCamera>()) {
+                    RealisticCamera *realisticCamera = camera.Cast<RealisticCamera>();
+                    Film film = camera.GetFilm();
+                    realisticCamera->RenderLensFlare(film, this->lights, samplerPrototype.SamplesPerPixel());
+                }
+
                 camera.InitMetadata(&metadata);
                 camera.GetFilm().WriteImage(metadata, 1.0f / waveStart);
             }
@@ -220,6 +228,7 @@ void ImageTileIntegrator::Render() {
     if (mseOutFile)
         fclose(mseOutFile);
     DisconnectFromDisplayServer();
+
     LOG_VERBOSE("Rendering finished");
 }
 
@@ -287,7 +296,7 @@ void RayIntegrator::EvaluatePixelSample(Point2i pPixel, int sampleIndex, Sampler
     camera.GetFilm().AddSample(pPixel, L, lambda, &visibleSurface,
                                cameraSample.filterWeight);
 }
-
+    
 // Integrator Utility Functions
 STAT_COUNTER("Intersections/Regular ray intersection tests", nIntersectionTests);
 STAT_COUNTER("Intersections/Shadow ray intersection tests", nShadowTests);
