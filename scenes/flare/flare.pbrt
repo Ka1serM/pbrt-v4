@@ -17,16 +17,16 @@ Film "rgb"
 
 Camera "realistic"
     "string lensfile" [ "../lenses/dgauss.50mm.dat" ]
-    "float aperturediameter" [ 17.1 ] 
+    "float aperturediameter" [ 5.4 ] 
     "float focusdistance" [ 10.0 ]
 
 WorldBegin
 
 # Top-Right, Far away, Extremely bright white.
 AttributeBegin
-    Translate 7 10 100.0 
+    Translate -8 -8 100.0 
     AreaLightSource "diffuse"
         "rgb L" [ 500000000 500000000 500000000 ] 
     # Small sphere to act as a point-like source
-    Shape "sphere" "float radius" [ 0.03 ]
+    Shape "sphere" "float radius" [ 0.01 ]
 AttributeEnd

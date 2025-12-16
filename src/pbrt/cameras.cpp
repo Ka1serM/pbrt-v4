@@ -1410,23 +1410,24 @@ void RealisticCamera::TraceFlareRay(
     const int sampleIndex,
     Film &film)
 {
-    // Sample light emission 
+    // Sample light emission
     const Point2f u1(RadicalInverse(0, lightSampleIndex + sampleIndex),
                RadicalInverse(1, lightSampleIndex + sampleIndex));
     const Point2f u2(RadicalInverse(2, lightSampleIndex + sampleIndex),
                RadicalInverse(3, lightSampleIndex + sampleIndex));
 
-    SampledWavelengths lambda = SampledWavelengths::SampleVisible(0.5);
+    const Float wavelengthSample = RadicalInverse(6, lightSampleIndex + sampleIndex);
+    const Float reflectionEventSample = RadicalInverse(7, lightSampleIndex + sampleIndex);
+    SampledWavelengths lambda = SampledWavelengths::SampleVisible(wavelengthSample);
     auto leSample = light.SampleLe(u1, u2, lambda, 0);
     if (!leSample) return;
 
     SampledSpectrum intensity = leSample->L;
     if (!intensity || leSample->pdfPos == 0 || leSample->pdfDir == 0) return;
 
-    // Choose reflection event 
-    const Float wavelengthSample = RadicalInverse(6, lightSampleIndex + sampleIndex);
+    // Choose reflection event
     const int eventIndex =
-        std::min(static_cast<int>(wavelengthSample * reflectionEvents.size()),
+        std::min(static_cast<int>(reflectionEventSample * reflectionEvents.size()),
                  static_cast<int>(reflectionEvents.size() - 1));
 
     const ReflectionPair &event = reflectionEvents[eventIndex];
