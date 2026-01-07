@@ -14,9 +14,12 @@
 #include <pbrt/ray.h>
 #include <pbrt/samplers.h>
 #include <pbrt/util/image.h>
+#include <pbrt/util/math.h>
 #include <pbrt/util/scattering.h>
+#include <pbrt/util/float.h>
 
 #include <algorithm>
+#include <cmath>
 #include <memory>
 #include <string>
 #include <vector>
@@ -474,15 +477,20 @@ struct ReflectionPair {
 // RealisticCamera Definition
 class RealisticCamera : public CameraBase {
   public:
+    PBRT_CPU_GPU RealisticCamera(CameraBaseParameters baseParameters,
+                std::vector<Float>& lensParameters, Float focusDistance,
+                Float setApertureDiameter, int flareSamples, bool sellmeier,
+                Image apertureImage, Allocator alloc);
+    
     // RealisticCamera Public Methods
-    RealisticCamera(CameraBaseParameters baseParameters,
-                    std::vector<Float> &lensParameters, Float focusDistance,
-                    Float apertureDiameter, Image apertureImage, Allocator alloc);
-
     static RealisticCamera *Create(const ParameterDictionary &parameters,
                                    const CameraTransform &cameraTransform, Film film,
                                    Medium medium, const FileLoc *loc,
                                    Allocator alloc = {});
+
+    PBRT_CPU_GPU
+    Float Sellmeier(Float wavelengthNm, Float B1, Float B2, Float B3, Float C1, Float C2,
+                    Float C3) const;
 
     PBRT_CPU_GPU
     pstd::optional<CameraRay> GenerateRay(CameraSample sample,
@@ -515,18 +523,21 @@ class RealisticCamera : public CameraBase {
 
     std::string ToString() const;
 
-    const int TOTAL_FLARE_SAMPLES = 1e10; // Total number of flare samples to trace
-    void RenderLensFlare(Film &film, const std::vector<Light> &lights, int samplesPerPixel);
+    void RenderLensFlare(const std::vector<Light> &lights);
 
-  private:
     // RealisticCamera Private Declarations
     struct LensElementInterface {
-        Float curvatureRadius;
+        Float curvatureRadiusX;
+        Float curvatureRadiusY;
         Float thickness;
-        Float eta;
         Float apertureRadius;
+        Float eta;  // Refractive index for regular tracing
+        // Sellmeier coefficients for wavelength-dependent refractive index (for flares only)
+        Float B1, B2, B3, C1, C2, C3;
+
         std::string ToString() const;
     };
+  private:
 
     struct FlareRay {
         Ray ray;
@@ -550,8 +561,8 @@ class RealisticCamera : public CameraBase {
     Float RearElementRadius() const { return elementInterfaces.back().apertureRadius; }
 
     PBRT_CPU_GPU
-    Float TraceLensesFromFilm(const Ray &rCamera, Ray *rOut) const;
-
+    Float TraceLensesFromFilm(const Ray& rCamera, Ray* rOut) const;
+    
     PBRT_CPU_GPU
     static bool IntersectSphericalElement(Float radius, Float zCenter, const Ray &ray,
                                           Float *t, Normal3f *n) {
@@ -576,24 +587,78 @@ class RealisticCamera : public CameraBase {
 
         return true;
     }
+    
+    // Intersect ray with a cylindrical lens element (horizontal curvature for anamorphic)
+    // Cylinder axis is vertical (Y), curvature in XZ plane
+    PBRT_CPU_GPU
+    static bool IntersectCylindricalElement(Float radiusX, Float zCenter, const Ray &ray,
+                                            Float *t, Normal3f *n) {
+        // Cylinder equation: (x - cx)^2 + (z - cz)^2 = r^2
+        // Cylinder is infinite along Y axis, curved in XZ plane
+        Point3f o = ray.o - Vector3f(0, 0, zCenter);
+
+        // Quadratic coefficients for cylinder intersection (ignoring Y component)
+        Float a = ray.d.x * ray.d.x + ray.d.z * ray.d.z;
+        Float b = 2.0f * (o.x * ray.d.x + o.z * ray.d.z);
+        Float c = o.x * o.x + o.z * o.z - radiusX * radiusX;
+
+        Float t0, t1;
+        if (!Quadratic(a, b, c, &t0, &t1))
+            return false;
+
+        // Select intersection based on ray direction and curvature
+        bool useCloserT = (ray.d.z > 0) ^ (radiusX < 0);
+        *t = useCloserT ? std::min(t0, t1) : std::max(t0, t1);
+        if (*t < 0)
+            return false;
+
+        // Compute surface normal at intersection point
+        // Normal is perpendicular to cylinder axis (Y), so it has no Y component
+        Point3f hitPoint = o + (*t) * ray.d;
+        Vector3f normalVec = Vector3f(hitPoint.x, 0, hitPoint.z);
+        *n = Normal3f(normalVec);
+        *n = FaceForward(Normalize(*n), -ray.d);
+
+        return true;
+    }
+
+    // Unified lens element intersection
+    PBRT_CPU_GPU
+    static bool IntersectLensElement(Float radiusX, Float radiusY, Float zCenter, 
+                                     const Ray &ray, Float *t, Normal3f *n) {
+        // Determine element type based on radii
+        if (std::abs(radiusX - radiusY) < 1e-6f) {
+            // Both radii equal: spherical element (or both zero for aperture stop)
+            return IntersectSphericalElement(radiusX, zCenter, ray, t, n);
+        }
+        
+        if (radiusY == 0.0f && radiusX != 0.0f) {
+            // Only Y is zero: cylindrical element with horizontal curvature (anamorphic)
+            return IntersectCylindricalElement(radiusX, zCenter, ray, t, n);
+        }
+        
+        // Invalid configuration: different non-zero radii not supported
+        return false;
+    }
 
     PBRT_CPU_GPU
-    Float TraceLensesFromScene(const Ray &rCamera, Ray *rOut) const;
+    Float TraceLensesFromScene(const Ray& rCamera, Ray* rOut) const;
+
 
     // Lens flare private methods
     std::vector<ReflectionPair> GenerateReflectionEvents() const;
-    bool AdvanceRayThroughElement(Ray& ray, int elementIndex, Float frontZ,
-                                  const LensElementInterface* elements) const;
-    bool ReflectAtElement(Ray& ray, int elementIndex, Float frontZ,
-                          SampledSpectrum& intensity) const;
+    bool AdvanceRayThroughElements(Ray& ray, int elementIndex, Float frontZ, const LensElementInterface* elements, Float wavelengthNm) const;
+    Float ReflectAtElement(Ray& ray, int elementIndex, Float frontZ, Float wavelengthNm) const;
+    bool TraceFlareRayPath(Ray& ray, const ReflectionPair& event, Float frontZ,
+                           Float wavelengthNm, Float& intensityScale) const;
 
     void TraceFlareRay(const Light& light,
-                       const std::vector<ReflectionPair> &reflectionEvents,
-                       int lightSampleIndex, int sampleIndex, Film &film);
+                       const std::vector<ReflectionPair>& reflectionEvents,
+                       int lightSampleIndex, int sampleIndex);
     
     void DrawLensSystem() const;
-    void DrawRayPathFromFilm(const Ray &r, bool arrow, bool toOpticalIntercept) const;
-    void DrawRayPathFromScene(const Ray &r, bool arrow, bool toOpticalIntercept) const;
+    void DrawRayPathFromFilm(const Ray& r, bool arrow, bool toOpticalIntercept) const;
+    void DrawRayPathFromScene(const Ray& r, bool arrow, bool toOpticalIntercept) const;
 
     static void ComputeCardinalPoints(Ray rIn, Ray rOut, Float *p, Float *f);
     void ComputeThickLensApproximation(Float pz[2], Float f[2]) const;
@@ -611,6 +676,10 @@ class RealisticCamera : public CameraBase {
     pstd::vector<LensElementInterface> elementInterfaces;
     Image apertureImage;
     pstd::vector<Bounds2f> exitPupilBounds;
+
+    // Lens Flare
+    int flareSamples;
+    bool sellmeier;
 };
 
 PBRT_CPU_GPU inline pstd::optional<CameraRay> Camera::GenerateRay(CameraSample sample,

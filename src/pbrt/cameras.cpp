@@ -20,6 +20,7 @@
 #include <pbrt/util/print.h>
 #include <pbrt/util/sampling.h>
 #include <pbrt/util/stats.h>
+#include <pbrt/util/progressreporter.h>
 
 #include <algorithm>
 #include <cmath>
@@ -27,7 +28,7 @@
 namespace pbrt {
 
 // CameraTransform Method Definitions
-CameraTransform::CameraTransform(const AnimatedTransform &worldFromCamera) {
+CameraTransform::CameraTransform(const AnimatedTransform& worldFromCamera) {
     switch (Options->renderingSpace) {
     case RenderingCoordinateSystem::Camera: {
         // Compute _worldFromRender_ for camera-space rendering
@@ -66,29 +67,30 @@ std::string CameraTransform::ToString() const {
 
 // Camera Method Definitions
 PBRT_CPU_GPU pstd::optional<CameraRayDifferential> Camera::GenerateRayDifferential(
-    CameraSample sample, SampledWavelengths &lambda) const {
+    CameraSample sample, SampledWavelengths& lambda) const {
     auto gen = [&](auto ptr) { return ptr->GenerateRayDifferential(sample, lambda); };
     return Dispatch(gen);
 }
 
-PBRT_CPU_GPU SampledSpectrum Camera::We(const Ray &ray, SampledWavelengths &lambda,
-                           Point2f *pRaster2) const {
+PBRT_CPU_GPU SampledSpectrum Camera::We(const Ray& ray, SampledWavelengths& lambda,
+                                        Point2f* pRaster2) const {
     auto we = [&](auto ptr) { return ptr->We(ray, lambda, pRaster2); };
     return Dispatch(we);
 }
 
-PBRT_CPU_GPU void Camera::PDF_We(const Ray &ray, Float *pdfPos, Float *pdfDir) const {
+PBRT_CPU_GPU void Camera::PDF_We(const Ray& ray, Float* pdfPos, Float* pdfDir) const {
     auto pdf = [&](auto ptr) { return ptr->PDF_We(ray, pdfPos, pdfDir); };
     return Dispatch(pdf);
 }
 
-PBRT_CPU_GPU pstd::optional<CameraWiSample> Camera::SampleWi(const Interaction &ref, Point2f u,
-                                                SampledWavelengths &lambda) const {
+PBRT_CPU_GPU pstd::optional<CameraWiSample> Camera::SampleWi(
+    const Interaction& ref, Point2f u,
+    SampledWavelengths& lambda) const {
     auto sample = [&](auto ptr) { return ptr->SampleWi(ref, u, lambda); };
     return Dispatch(sample);
 }
 
-void Camera::InitMetadata(ImageMetadata *metadata) const {
+void Camera::InitMetadata(ImageMetadata* metadata) const {
     auto init = [&](auto ptr) { return ptr->InitMetadata(metadata); };
     return DispatchCPU(init);
 }
@@ -110,14 +112,14 @@ CameraBase::CameraBase(CameraBaseParameters p)
       medium(p.medium) {
     if (cameraTransform.CameraFromRenderHasScale())
         Warning("Scaling detected in rendering space to camera space transformation!\n"
-                "The system has numerous assumptions, implicit and explicit,\n"
-                "that this transform will have no scale factors in it.\n"
-                "Proceed at your own risk; your image may have errors or\n"
-                "the system may crash as a result of this.");
+            "The system has numerous assumptions, implicit and explicit,\n"
+            "that this transform will have no scale factors in it.\n"
+            "Proceed at your own risk; your image may have errors or\n"
+            "the system may crash as a result of this.");
 }
 
 PBRT_CPU_GPU pstd::optional<CameraRayDifferential> CameraBase::GenerateRayDifferential(
-    Camera camera, CameraSample sample, SampledWavelengths &lambda) {
+    Camera camera, CameraSample sample, SampledWavelengths& lambda) {
     // Generate regular camera ray _cr_ for ray differential
     pstd::optional<CameraRay> cr = camera.GenerateRay(sample, lambda);
     if (!cr)
@@ -156,7 +158,8 @@ PBRT_CPU_GPU pstd::optional<CameraRayDifferential> CameraBase::GenerateRayDiffer
 
 void CameraBase::FindMinimumDifferentials(Camera camera) {
     minPosDifferentialX = minPosDifferentialY = minDirDifferentialX =
-        minDirDifferentialY = Vector3f(Infinity, Infinity, Infinity);
+                                                minDirDifferentialY = Vector3f(
+                                                    Infinity, Infinity, Infinity);
 
     CameraSample sample;
     sample.pLens = Point2f(0.5, 0.5);
@@ -173,7 +176,7 @@ void CameraBase::FindMinimumDifferentials(Camera camera) {
         if (!crd)
             continue;
 
-        RayDifferential &ray = crd->ray;
+        RayDifferential& ray = crd->ray;
         Vector3f dox = CameraFromRender(ray.rxOrigin - ray.o, ray.time);
         if (Length(dox) < Length(minPosDifferentialX))
             minPosDifferentialX = dox;
@@ -186,7 +189,7 @@ void CameraBase::FindMinimumDifferentials(Camera camera) {
         ray.ryDirection = Normalize(ray.ryDirection);
 
         Frame f = Frame::FromZ(ray.d);
-        Vector3f df = f.ToLocal(ray.d);  // should be (0, 0, 1);
+        Vector3f df = f.ToLocal(ray.d); // should be (0, 0, 1);
         Vector3f dxf = Normalize(f.ToLocal(ray.rxDirection));
         Vector3f dyf = Normalize(f.ToLocal(ray.ryDirection));
 
@@ -202,7 +205,7 @@ void CameraBase::FindMinimumDifferentials(Camera camera) {
                 minDirDifferentialY);
 }
 
-void CameraBase::InitMetadata(ImageMetadata *metadata) const {
+void CameraBase::InitMetadata(ImageMetadata* metadata) const {
     metadata->cameraFromWorld = cameraTransform.CameraFromWorld(shutterOpen).GetMatrix();
 }
 
@@ -222,7 +225,7 @@ std::string CameraSample::ToString() const {
 }
 
 // ProjectiveCamera Method Definitions
-void ProjectiveCamera::InitMetadata(ImageMetadata *metadata) const {
+void ProjectiveCamera::InitMetadata(ImageMetadata* metadata) const {
     metadata->cameraFromWorld = cameraTransform.CameraFromWorld(shutterOpen).GetMatrix();
 
     // TODO: double check this
@@ -242,9 +245,9 @@ std::string ProjectiveCamera::BaseToString() const {
                         screenFromRaster, lensRadius, focalDistance);
 }
 
-Camera Camera::Create(const std::string &name, const ParameterDictionary &parameters,
-                      Medium medium, const CameraTransform &cameraTransform, Film film,
-                      const FileLoc *loc, Allocator alloc) {
+Camera Camera::Create(const std::string& name, const ParameterDictionary& parameters,
+                      Medium medium, const CameraTransform& cameraTransform, Film film,
+                      const FileLoc* loc, Allocator alloc) {
     Camera camera;
     if (name == "perspective")
         camera = PerspectiveCamera::Create(parameters, cameraTransform, film, medium, loc,
@@ -269,10 +272,10 @@ Camera Camera::Create(const std::string &name, const ParameterDictionary &parame
 }
 
 // CameraBaseParameters Method Definitions
-CameraBaseParameters::CameraBaseParameters(const CameraTransform &cameraTransform,
+CameraBaseParameters::CameraBaseParameters(const CameraTransform& cameraTransform,
                                            Film film, Medium medium,
-                                           const ParameterDictionary &parameters,
-                                           const FileLoc *loc)
+                                           const ParameterDictionary& parameters,
+                                           const FileLoc* loc)
     : cameraTransform(cameraTransform), film(film), medium(medium) {
     shutterOpen = parameters.GetOneFloat("shutteropen", 0.f);
     shutterClose = parameters.GetOneFloat("shutterclose", 1.f);
@@ -285,7 +288,7 @@ CameraBaseParameters::CameraBaseParameters(const CameraTransform &cameraTransfor
 
 // OrthographicCamera Method Definitions
 PBRT_CPU_GPU pstd::optional<CameraRay> OrthographicCamera::GenerateRay(
-    CameraSample sample, SampledWavelengths &lambda) const {
+    CameraSample sample, SampledWavelengths& lambda) const {
     // Compute raster and camera sample positions
     Point3f pFilm = Point3f(sample.pFilm.x, sample.pFilm.y, 0);
     Point3f pCamera = cameraFromRaster(pFilm);
@@ -308,8 +311,9 @@ PBRT_CPU_GPU pstd::optional<CameraRay> OrthographicCamera::GenerateRay(
     return CameraRay{RenderFromCamera(ray)};
 }
 
-PBRT_CPU_GPU pstd::optional<CameraRayDifferential> OrthographicCamera::GenerateRayDifferential(
-    CameraSample sample, SampledWavelengths &lambda) const {
+PBRT_CPU_GPU pstd::optional<CameraRayDifferential>
+OrthographicCamera::GenerateRayDifferential(
+    CameraSample sample, SampledWavelengths& lambda) const {
     // Compute main orthographic viewing ray
     // Compute raster and camera sample positions
     Point3f pFilm = Point3f(sample.pFilm.x, sample.pFilm.y, 0);
@@ -344,7 +348,6 @@ PBRT_CPU_GPU pstd::optional<CameraRayDifferential> OrthographicCamera::GenerateR
         pFocus = pCamera + dyCamera + (ft * Vector3f(0, 0, 1));
         ray.ryOrigin = Point3f(pLens.x, pLens.y, 0);
         ray.ryDirection = Normalize(pFocus - ray.ryOrigin);
-
     } else {
         ray.rxOrigin = ray.o + dxCamera;
         ray.ryOrigin = ray.o + dyCamera;
@@ -360,10 +363,10 @@ std::string OrthographicCamera::ToString() const {
                         BaseToString(), dxCamera, dyCamera);
 }
 
-OrthographicCamera *OrthographicCamera::Create(const ParameterDictionary &parameters,
-                                               const CameraTransform &cameraTransform,
+OrthographicCamera* OrthographicCamera::Create(const ParameterDictionary& parameters,
+                                               const CameraTransform& cameraTransform,
                                                Film film, Medium medium,
-                                               const FileLoc *loc, Allocator alloc) {
+                                               const FileLoc* loc, Allocator alloc) {
     CameraBaseParameters cameraBaseParameters(cameraTransform, film, medium, parameters,
                                               loc);
 
@@ -371,7 +374,7 @@ OrthographicCamera *OrthographicCamera::Create(const ParameterDictionary &parame
     Float focaldistance = parameters.GetOneFloat("focaldistance", 1e6f);
     Float frame =
         parameters.GetOneFloat("frameaspectratio", Float(film.FullResolution().x) /
-                                                       Float(film.FullResolution().y));
+                                                   Float(film.FullResolution().y));
     Bounds2f screen;
     if (frame > 1.f) {
         screen.pMin.x = -frame;
@@ -387,7 +390,7 @@ OrthographicCamera *OrthographicCamera::Create(const ParameterDictionary &parame
     std::vector<Float> sw = parameters.GetFloatArray("screenwindow");
     if (!sw.empty()) {
         if (Options->fullscreen) {
-                Warning("\"screenwindow\" is ignored in fullscreen mode");
+            Warning("\"screenwindow\" is ignored in fullscreen mode");
         } else {
             if (sw.size() == 4) {
                 screen.pMin.x = sw[0];
@@ -405,7 +408,7 @@ OrthographicCamera *OrthographicCamera::Create(const ParameterDictionary &parame
 
 // PerspectiveCamera Method Definitions
 PBRT_CPU_GPU pstd::optional<CameraRay> PerspectiveCamera::GenerateRay(
-    CameraSample sample, SampledWavelengths &lambda) const {
+    CameraSample sample, SampledWavelengths& lambda) const {
     // Compute raster and camera sample positions
     Point3f pFilm = Point3f(sample.pFilm.x, sample.pFilm.y, 0);
     Point3f pCamera = cameraFromRaster(pFilm);
@@ -429,8 +432,9 @@ PBRT_CPU_GPU pstd::optional<CameraRay> PerspectiveCamera::GenerateRay(
     return CameraRay{RenderFromCamera(ray)};
 }
 
-PBRT_CPU_GPU pstd::optional<CameraRayDifferential> PerspectiveCamera::GenerateRayDifferential(
-    CameraSample sample, SampledWavelengths &lambda) const {
+PBRT_CPU_GPU pstd::optional<CameraRayDifferential>
+PerspectiveCamera::GenerateRayDifferential(
+    CameraSample sample, SampledWavelengths& lambda) const {
     // Compute raster and camera sample positions
     Point3f pFilm = Point3f(sample.pFilm.x, sample.pFilm.y, 0);
     Point3f pCamera = cameraFromRaster(pFilm);
@@ -469,7 +473,6 @@ PBRT_CPU_GPU pstd::optional<CameraRayDifferential> PerspectiveCamera::GenerateRa
         pFocus = Point3f(0, 0, 0) + (ft * dy);
         ray.ryOrigin = Point3f(pLens.x, pLens.y, 0);
         ray.ryDirection = Normalize(pFocus - ray.ryOrigin);
-
     } else {
         ray.rxOrigin = ray.ryOrigin = ray.o;
         ray.rxDirection = Normalize(Vector3f(pCamera) + dxCamera);
@@ -486,9 +489,9 @@ std::string PerspectiveCamera::ToString() const {
                         BaseToString(), dxCamera, dyCamera, A, cosTotalWidth);
 }
 
-PerspectiveCamera *PerspectiveCamera::Create(const ParameterDictionary &parameters,
-                                             const CameraTransform &cameraTransform,
-                                             Film film, Medium medium, const FileLoc *loc,
+PerspectiveCamera* PerspectiveCamera::Create(const ParameterDictionary& parameters,
+                                             const CameraTransform& cameraTransform,
+                                             Film film, Medium medium, const FileLoc* loc,
                                              Allocator alloc) {
     CameraBaseParameters cameraBaseParameters(cameraTransform, film, medium, parameters,
                                               loc);
@@ -497,7 +500,7 @@ PerspectiveCamera *PerspectiveCamera::Create(const ParameterDictionary &paramete
     Float focaldistance = parameters.GetOneFloat("focaldistance", 1e6);
     Float frame =
         parameters.GetOneFloat("frameaspectratio", Float(film.FullResolution().x) /
-                                                       Float(film.FullResolution().y));
+                                                   Float(film.FullResolution().y));
     Bounds2f screen;
     if (frame > 1.f) {
         screen.pMin.x = -frame;
@@ -513,7 +516,7 @@ PerspectiveCamera *PerspectiveCamera::Create(const ParameterDictionary &paramete
     std::vector<Float> sw = parameters.GetFloatArray("screenwindow");
     if (!sw.empty()) {
         if (Options->fullscreen) {
-                Warning("\"screenwindow\" is ignored in fullscreen mode");
+            Warning("\"screenwindow\" is ignored in fullscreen mode");
         } else {
             if (sw.size() == 4) {
                 screen.pMin.x = sw[0];
@@ -530,8 +533,9 @@ PerspectiveCamera *PerspectiveCamera::Create(const ParameterDictionary &paramete
                                                lensradius, focaldistance);
 }
 
-PBRT_CPU_GPU SampledSpectrum PerspectiveCamera::We(const Ray &ray, SampledWavelengths &lambda,
-                                      Point2f *pRasterOut) const {
+PBRT_CPU_GPU SampledSpectrum PerspectiveCamera::We(const Ray& ray,
+                                                   SampledWavelengths& lambda,
+                                                   Point2f* pRasterOut) const {
     // Check if ray is forward-facing with respect to the camera
     Float cosTheta = Dot(ray.d, RenderFromCamera(Vector3f(0, 0, 1), ray.time));
     if (cosTheta <= cosTotalWidth)
@@ -558,7 +562,8 @@ PBRT_CPU_GPU SampledSpectrum PerspectiveCamera::We(const Ray &ray, SampledWavele
     return SampledSpectrum(1 / (A * lensArea * Pow<4>(cosTheta)));
 }
 
-PBRT_CPU_GPU void PerspectiveCamera::PDF_We(const Ray &ray, Float *pdfPos, Float *pdfDir) const {
+PBRT_CPU_GPU void PerspectiveCamera::PDF_We(const Ray& ray, Float* pdfPos,
+                                            Float* pdfDir) const {
     // Return zero PDF values if ray direction is not front-facing
     Float cosTheta = Dot(ray.d, RenderFromCamera(Vector3f(0, 0, 1), ray.time));
     if (cosTheta <= cosTotalWidth) {
@@ -585,7 +590,7 @@ PBRT_CPU_GPU void PerspectiveCamera::PDF_We(const Ray &ray, Float *pdfPos, Float
 }
 
 PBRT_CPU_GPU pstd::optional<CameraWiSample> PerspectiveCamera::SampleWi(
-    const Interaction &ref, Point2f u, SampledWavelengths &lambda) const {
+    const Interaction& ref, Point2f u, SampledWavelengths& lambda) const {
     // Uniformly sample a lens interaction _lensIntr_
     Point2f pLens = lensRadius * SampleUniformDiskConcentric(u);
     Point3f pLensRender = RenderFromCamera(Point3f(pLens.x, pLens.y, 0), ref.time);
@@ -611,7 +616,7 @@ PBRT_CPU_GPU pstd::optional<CameraWiSample> PerspectiveCamera::SampleWi(
 
 // SphericalCamera Method Definitions
 PBRT_CPU_GPU pstd::optional<CameraRay> SphericalCamera::GenerateRay(CameraSample sample,
-                                                       SampledWavelengths &lambda) const {
+    SampledWavelengths& lambda) const {
     // Compute spherical camera ray direction
     Point2f uv(sample.pFilm.x / film.FullResolution().x,
                sample.pFilm.y / film.FullResolution().y);
@@ -620,7 +625,6 @@ PBRT_CPU_GPU pstd::optional<CameraRay> SphericalCamera::GenerateRay(CameraSample
         // Compute ray direction using equirectangular mapping
         Float theta = Pi * uv[1], phi = 2 * Pi * uv[0];
         dir = SphericalDirection(std::sin(theta), std::cos(theta), phi);
-
     } else {
         // Compute ray direction using equal area mapping
         uv = WrapEqualAreaSquare(uv);
@@ -632,9 +636,9 @@ PBRT_CPU_GPU pstd::optional<CameraRay> SphericalCamera::GenerateRay(CameraSample
     return CameraRay{RenderFromCamera(ray)};
 }
 
-SphericalCamera *SphericalCamera::Create(const ParameterDictionary &parameters,
-                                         const CameraTransform &cameraTransform,
-                                         Film film, Medium medium, const FileLoc *loc,
+SphericalCamera* SphericalCamera::Create(const ParameterDictionary& parameters,
+                                         const CameraTransform& cameraTransform,
+                                         Film film, Medium medium, const FileLoc* loc,
                                          Allocator alloc) {
     CameraBaseParameters cameraBaseParameters(cameraTransform, film, medium, parameters,
                                               loc);
@@ -643,7 +647,7 @@ SphericalCamera *SphericalCamera::Create(const ParameterDictionary &parameters,
     Float focaldistance = parameters.GetOneFloat("focaldistance", 1e30f);
     Float frame =
         parameters.GetOneFloat("frameaspectratio", Float(film.FullResolution().x) /
-                                                       Float(film.FullResolution().y));
+                                                   Float(film.FullResolution().y));
     Bounds2f screen;
     if (frame > 1.f) {
         screen.pMin.x = -frame;
@@ -659,7 +663,7 @@ SphericalCamera *SphericalCamera::Create(const ParameterDictionary &parameters,
     std::vector<Float> sw = parameters.GetFloatArray("screenwindow");
     if (!sw.empty()) {
         if (Options->fullscreen) {
-                Warning("\"screenwindow\" is ignored in fullscreen mode");
+            Warning("\"screenwindow\" is ignored in fullscreen mode");
         } else {
             if (sw.size() == 4) {
                 screen.pMin.x = sw[0];
@@ -671,8 +675,8 @@ SphericalCamera *SphericalCamera::Create(const ParameterDictionary &parameters,
             }
         }
     }
-    (void)lensradius;     // don't need this
-    (void)focaldistance;  // don't need this
+    (void)lensradius; // don't need this
+    (void)focaldistance; // don't need this
 
     std::string m = parameters.GetOneString("mapping", "equalarea");
     Mapping mapping;
@@ -696,13 +700,16 @@ std::string SphericalCamera::ToString() const {
 
 // RealisticCamera Method Definitions
 RealisticCamera::RealisticCamera(CameraBaseParameters baseParameters,
-                                 std::vector<Float> &lensParameters, Float focusDistance,
-                                 Float setApertureDiameter, Image apertureImage,
+                                 std::vector<Float>& lensParameters, Float focusDistance,
+                                 Float setApertureDiameter, int flareSamples, bool sellmeier,
+                                 Image apertureImage,
                                  Allocator alloc)
     : CameraBase(baseParameters),
       elementInterfaces(alloc),
       exitPupilBounds(alloc),
-      apertureImage(std::move(apertureImage)) {
+      apertureImage(std::move(apertureImage)),
+      flareSamples(flareSamples),
+    sellmeier(sellmeier) {
     // Compute film's physical extent
     Float aspect = (Float)film.FullResolution().y / (Float)film.FullResolution().x;
     Float diagonal = film.Diagonal();
@@ -711,30 +718,40 @@ RealisticCamera::RealisticCamera(CameraBaseParameters baseParameters,
     physicalExtent = Bounds2f(Point2f(-x / 2, -y / 2), Point2f(x / 2, y / 2));
 
     // Initialize _elementInterfaces_ for camera
-    for (size_t i = 0; i < lensParameters.size(); i += 4) {
-        // Extract lens element configuration from _lensParameters_
-        Float curvatureRadius = lensParameters[i] / 1000;
-        Float thickness = lensParameters[i + 1] / 1000;
-        Float eta = lensParameters[i + 2];
-        Float apertureDiameter = lensParameters[i + 3] / 1000;
+    for (size_t i = 0; i < lensParameters.size();) {
+        LensElementInterface element{};
+        element.curvatureRadiusX = lensParameters[i] / 1000;
+        element.curvatureRadiusY = lensParameters[i + 1] / 1000;
+        element.thickness = lensParameters[i + 2] / 1000;
+        element.apertureRadius = lensParameters[i + 3] / 1000 / 2;
+        element.eta = lensParameters[i + 4];
+        // Read Sellmeier coefficients (B1, B2, B3, C1, C2, C3)
+        element.B1 = lensParameters[i + 5];
+        element.B2 = lensParameters[i + 6];
+        element.B3 = lensParameters[i + 7];
+        element.C1 = lensParameters[i + 8];
+        element.C2 = lensParameters[i + 9];
+        element.C3 = lensParameters[i + 10];
 
-        if (curvatureRadius == 0) {
-            // Set aperture stop diameter
+        // Aperture stop handling
+        if (element.curvatureRadiusX == 0  && element.curvatureRadiusY == 0) {
+            // Aperture stop
             setApertureDiameter /= 1000;
-            if (setApertureDiameter > apertureDiameter)
+            if (setApertureDiameter > element.apertureRadius * 2)
                 Warning("Aperture diameter %f is greater than maximum possible %f. "
-                        "Clamping it.",
-                        setApertureDiameter, apertureDiameter);
+                        "Clamping it.", setApertureDiameter, element.apertureRadius * 2);
             else
-                apertureDiameter = setApertureDiameter;
+                element.apertureRadius = setApertureDiameter / 2;
         }
-        // Add element interface to end of _elementInterfaces_
-        elementInterfaces.push_back(
-            {curvatureRadius, thickness, eta, apertureDiameter / 2});
+
+        elementInterfaces.push_back(element);
+        i += 11; // Move to next element
     }
 
     // Compute lens--film distance for given focus distance
-    elementInterfaces.back().thickness = FocusThickLens(focusDistance);
+    elementInterfaces.back().thickness = FocusThickLens(focusDistance); //TODO breaks for anamorphic lenses
+    LOG_VERBOSE("Lens film distance for focus distance %f: %f", focusDistance,
+                elementInterfaces.back().thickness);
 
     // Compute exit pupil bounds at sampled points on the film
     int nSamples = 64;
@@ -762,7 +779,7 @@ PBRT_CPU_GPU Float RealisticCamera::TraceLensesFromFilm(const Ray &rCamera, Ray 
         // Compute intersection of ray with lens element
         Float t;
         Normal3f n;
-        bool isStop = (element.curvatureRadius == 0);
+        bool isStop = (element.curvatureRadiusX == 0 && element.curvatureRadiusY == 0);
         if (isStop) {
             // Compute _t_ at plane of aperture stop
             t = (elementZ - rLens.o.z) / rLens.d.z;
@@ -771,8 +788,8 @@ PBRT_CPU_GPU Float RealisticCamera::TraceLensesFromFilm(const Ray &rCamera, Ray 
 
         } else {
             // Intersect ray with element to compute _t_ and _n_
-            Float radius = element.curvatureRadius;
-            Float zCenter = elementZ + element.curvatureRadius;
+            Float radius = element.curvatureRadiusX;
+            Float zCenter = elementZ + element.curvatureRadiusX;
             if (!IntersectSphericalElement(radius, zCenter, rLens, &t, &n))
                 return 0;
         }
@@ -956,7 +973,7 @@ STAT_PERCENT("Camera/Rays vignetted by lens system", vignettedRays, totalRays);
 std::string RealisticCamera::LensElementInterface::ToString() const {
     return StringPrintf("[ LensElementInterface curvatureRadius: %f thickness: %f "
                         "eta: %f apertureRadius: %f ]",
-                        curvatureRadius, thickness, eta, apertureRadius);
+                        curvatureRadiusX, thickness, eta, apertureRadius);
 }
 
 PBRT_CPU_GPU Float RealisticCamera::TraceLensesFromScene(const Ray &rCamera, Ray *rOut) const {
@@ -969,14 +986,14 @@ PBRT_CPU_GPU Float RealisticCamera::TraceLensesFromScene(const Ray &rCamera, Ray
         // Compute intersection of ray with lens element
         Float t;
         Normal3f n;
-        bool isStop = (element.curvatureRadius == 0);
+        bool isStop = (element.curvatureRadiusX == 0 && element.curvatureRadiusY == 0);
         if (isStop) {
             t = (elementZ - rLens.o.z) / rLens.d.z;
             if (t < 0)
                 return 0;
         } else {
-            Float radius = element.curvatureRadius;
-            Float zCenter = elementZ + element.curvatureRadius;
+            Float radius = element.curvatureRadiusX;
+            Float zCenter = elementZ + element.curvatureRadiusX;
             if (!IntersectSphericalElement(radius, zCenter, rLens, &t, &n))
                 return 0;
         }
@@ -1014,7 +1031,7 @@ void RealisticCamera::DrawLensSystem() const {
     Float z = sumz;
     for (size_t i = 0; i < elementInterfaces.size(); ++i) {
         const LensElementInterface &element = elementInterfaces[i];
-        Float r = element.curvatureRadius;
+        Float r = element.curvatureRadiusX;
         if (r == 0) {
             // stop
             printf("{Thick, Line[{{%f, %f}, {%f, %f}}], ", z, element.apertureRadius, z,
@@ -1043,14 +1060,14 @@ void RealisticCamera::DrawLensSystem() const {
 
                 Float zp0, zp1;
                 if (r > 0) {
-                    zp0 = z + element.curvatureRadius -
+                    zp0 = z + element.curvatureRadiusX -
                           element.apertureRadius / std::tan(theta);
                 } else {
-                    zp0 = z + element.curvatureRadius +
+                    zp0 = z + element.curvatureRadiusX +
                           element.apertureRadius / std::tan(theta);
                 }
 
-                Float nextCurvatureRadius = elementInterfaces[i + 1].curvatureRadius;
+                Float nextCurvatureRadius = elementInterfaces[i + 1].curvatureRadiusX;
                 Float nextTheta =
                     std::abs(SafeASin(nextApertureRadius / nextCurvatureRadius));
                 if (nextCurvatureRadius > 0) {
@@ -1099,15 +1116,15 @@ void RealisticCamera::DrawRayPathFromFilm(const Ray &r, bool arrow,
     for (int i = elementInterfaces.size() - 1; i >= 0; --i) {
         const LensElementInterface &element = elementInterfaces[i];
         elementZ -= element.thickness;
-        bool isStop = (element.curvatureRadius == 0);
+        bool isStop = (element.curvatureRadiusX == 0 && element.curvatureRadiusY);
         // Compute intersection of ray with lens element
         Float t;
         Normal3f n;
         if (isStop)
             t = -(ray.o.z - elementZ) / ray.d.z;
         else {
-            Float radius = element.curvatureRadius;
-            Float zCenter = elementZ + element.curvatureRadius;
+            Float radius = element.curvatureRadiusX;
+            Float zCenter = elementZ + element.curvatureRadiusX;
             if (!IntersectSphericalElement(radius, zCenter, ray, &t, &n))
                 goto done;
         }
@@ -1151,8 +1168,8 @@ void RealisticCamera::DrawRayPathFromFilm(const Ray &r, bool arrow,
             printf(", Line[{{%f, 0}, {%f, 0}}]", ray.o.z, ray(ta).z * 1.05f);
     }
 
-done:
-    printf("}");
+    done:
+        printf("}");
 }
 
 void RealisticCamera::DrawRayPathFromScene(const Ray &r, bool arrow,
@@ -1164,15 +1181,15 @@ void RealisticCamera::DrawRayPathFromScene(const Ray &r, bool arrow,
     Ray ray = LensFromCamera(r);
     for (size_t i = 0; i < elementInterfaces.size(); ++i) {
         const LensElementInterface &element = elementInterfaces[i];
-        bool isStop = (element.curvatureRadius == 0);
+        bool isStop = (element.curvatureRadiusX == 0 && element.curvatureRadiusY);
         // Compute intersection of ray with lens element
         Float t;
         Normal3f n;
         if (isStop)
             t = -(ray.o.z - elementZ) / ray.d.z;
         else {
-            Float radius = element.curvatureRadius;
-            Float zCenter = elementZ + element.curvatureRadius;
+            Float radius = element.curvatureRadiusX;
+            Float zCenter = elementZ + element.curvatureRadiusX;
             if (!IntersectSphericalElement(radius, zCenter, ray, &t, &n))
                 return;
         }
@@ -1294,234 +1311,6 @@ std::string RealisticCamera::ToString() const {
         CameraBase::ToString(), elementInterfaces, exitPupilBounds);
 }
 
-// Lens Flare Implementation
-std::vector<ReflectionPair> RealisticCamera::GenerateReflectionEvents() const {
-    const int totalSequenceCount =
-        elementInterfaces.size() * (elementInterfaces.size() - 2) / 2;
-
-    std::vector<ReflectionPair> events;
-    events.reserve(totalSequenceCount);
-
-    for (int reflectTo = 0; reflectTo < elementInterfaces.size(); reflectTo++) {
-        for (int reflectFrom = elementInterfaces.size() - 1; reflectFrom > reflectTo; reflectFrom--) {
-
-            const bool involvesAperture =
-                (elementInterfaces[reflectTo].curvatureRadius == 0) ||
-                (elementInterfaces[reflectFrom].curvatureRadius == 0);
-
-            if (involvesAperture)
-                continue;
-
-            // Ray goes forward to reflectFrom, then back to reflectTo
-            events.emplace_back(reflectFrom, reflectTo);
-             }
-    }
-
-    return events;
-}
-
-bool RealisticCamera::AdvanceRayThroughElement(
-    Ray &ray,
-    const int elementIndex,
-    const Float frontZ,
-    const LensElementInterface *elements) const
-{
-    const LensElementInterface &element = elements[elementIndex];
-
-    // Compute element Z position
-    Float elementZ = frontZ;
-    for (int j = 0; j < elementIndex; j++)
-        elementZ += elements[j].thickness;
-
-    Float t;
-    Normal3f n;
-    const bool isStop = (element.curvatureRadius == 0);
-
-    if (isStop) {
-        t = (elementZ - ray.o.z) / ray.d.z;
-        if (t < 0) return false;
-    } else {
-        Float zCenter = elementZ + element.curvatureRadius;
-        if (!IntersectSphericalElement(element.curvatureRadius, zCenter, ray, &t, &n))
-            return false;
-    }
-
-    const Point3f pHit = ray(t);
-    if (Sqr(pHit.x) + Sqr(pHit.y) > Sqr(element.apertureRadius))
-        return false;
-
-    ray.o = pHit;
-
-    if (!isStop) {
-        
-        const Float eta_i = (elementIndex == 0 || elements[elementIndex].eta == 0) ? 1 : elements[elementIndex].eta;
-        const Float eta_t = (elementIndex + 1 < elementInterfaces.size() && elements[elementIndex + 1].eta != 0) ? elements[elementIndex + 1].eta : 1;
-        
-        Vector3f wt;
-        if (!Refract(Normalize(-ray.d), n, eta_t / eta_i, nullptr, &wt))
-            return false;
-
-        ray.d = wt;
-    }
-
-    return true;
-}
-
-// Perfect mirror reflection at a lens surface + Fresnel attenuation
-bool RealisticCamera::ReflectAtElement(
-    Ray &ray,
-    const int elementIndex,
-    const Float frontZ,
-    SampledSpectrum &intensity) const
-{
-    const LensElementInterface &element = elementInterfaces[elementIndex];
-
-    Float reflectZ = frontZ;
-    for (int j = 0; j < elementIndex; j++)
-        reflectZ += elementInterfaces[j].thickness;
-
-    const Float zCenter = reflectZ + element.curvatureRadius;
-
-    Float t;
-    Normal3f n;
-    if (!IntersectSphericalElement(element.curvatureRadius, zCenter, ray, &t, &n))
-        return false;
-
-    const Point3f pReflect = ray(t);
-    if (Sqr(pReflect.x) + Sqr(pReflect.y) > Sqr(element.apertureRadius))
-        return false;
-
-    ray.o = pReflect;
-
-    const Vector3f incident = Normalize(ray.d);
-    ray.d = Normalize(incident - 2 * Dot(incident, n) * Vector3f(n));
-
-    const Float cosTheta = AbsDot(ray.d, n);
-    intensity *= FrDielectric(cosTheta, 1.5f);
-
-    return true;
-}
-
-// Trace a single flare ray
-void RealisticCamera::TraceFlareRay(
-    const Light& light,
-    const std::vector<ReflectionPair> &reflectionEvents,
-    const int lightSampleIndex,
-    const int sampleIndex,
-    Film &film)
-{
-    // Sample light emission
-    const Point2f u1(RadicalInverse(0, lightSampleIndex + sampleIndex),
-               RadicalInverse(1, lightSampleIndex + sampleIndex));
-    const Point2f u2(RadicalInverse(2, lightSampleIndex + sampleIndex),
-               RadicalInverse(3, lightSampleIndex + sampleIndex));
-
-    const Float wavelengthSample = RadicalInverse(6, lightSampleIndex + sampleIndex);
-    const Float reflectionEventSample = RadicalInverse(7, lightSampleIndex + sampleIndex);
-    SampledWavelengths lambda = SampledWavelengths::SampleVisible(wavelengthSample);
-    auto leSample = light.SampleLe(u1, u2, lambda, 0);
-    if (!leSample) return;
-
-    SampledSpectrum intensity = leSample->L;
-    if (!intensity || leSample->pdfPos == 0 || leSample->pdfDir == 0) return;
-
-    // Choose reflection event
-    const int eventIndex =
-        std::min(static_cast<int>(reflectionEventSample * reflectionEvents.size()),
-                 static_cast<int>(reflectionEvents.size() - 1));
-
-    const ReflectionPair &event = reflectionEvents[eventIndex];
-
-    // Sample point on first lens surface 
-    const Point2f disk = SampleUniformDiskConcentric(
-        Point2f(RadicalInverse(4, lightSampleIndex + sampleIndex),
-                RadicalInverse(5, lightSampleIndex + sampleIndex)));
-
-    const Point2f pLens2d = elementInterfaces[0].apertureRadius * disk;
-    const Float frontZ = -LensFrontZ();
-
-    Point3f pLens(pLens2d.x, pLens2d.y,
-                  frontZ + elementInterfaces[0].curvatureRadius);
-
-    const Transform cameraFromLens = Scale(1, 1, -1);
-    pLens = cameraFromLens(pLens);
-
-    Ray ray(leSample->ray.o, Normalize(pLens - leSample->ray.o));
-    ray = Ray(Point3f(ray.o.x, ray.o.y, -ray.o.z),
-              Vector3f(ray.d.x, ray.d.y, -ray.d.z));
-
-    // To first reflection 
-    for (int i = 0; i < event.reflectFrom; i++)
-        if (!AdvanceRayThroughElement(ray, i, frontZ, elementInterfaces.data()))
-            return;
-
-    if (!ReflectAtElement(ray, event.reflectFrom, frontZ, intensity))
-        return;
-
-    // Between reflections 
-    for (int i = event.reflectFrom + 1; i < event.reflectTo; i++)
-        if (!AdvanceRayThroughElement(ray, i, frontZ, elementInterfaces.data()))
-            return;
-
-    if (!ReflectAtElement(ray, event.reflectTo, frontZ, intensity))
-        return;
-
-    // To film 
-    for (int i = event.reflectTo + 1; i < elementInterfaces.size(); i++)
-        if (!AdvanceRayThroughElement(ray, i, frontZ, elementInterfaces.data()))
-            return;
-
-    // Hit film plane <
-    if (std::abs(ray.d.z) < 1e-6f) return;
-
-    const Float tFilm = -ray.o.z / ray.d.z;
-    Point3f pFilm = ray(tFilm);
-    pFilm = Point3f(pFilm.x, pFilm.y, -pFilm.z);
-
-    if (!Inside(Point2f(pFilm.x, pFilm.y), physicalExtent))
-        return;
-
-    const Vector2f raster = physicalExtent.Offset(Point2f(pFilm.x, pFilm.y));
-
-    const Point2i pixel(
-        Clamp(static_cast<int>(raster.x * film.FullResolution().x), 0,
-              film.FullResolution().x - 1),
-        Clamp(static_cast<int>(raster.y * film.FullResolution().y), 0,
-              film.FullResolution().y - 1));
-
-    // Normalize by total number of samples to prevent brightening with more samples
-    const SampledSpectrum normalizedIntensity = intensity / Float(TOTAL_FLARE_SAMPLES);
-
-    film.AddSplat(Point2f(pixel.x + 0.5f, pixel.y + 0.5f), normalizedIntensity, SampledWavelengths::SampleVisible(wavelengthSample));
-}
-
-void RealisticCamera::RenderLensFlare(Film &film, const std::vector<Light> &lights, int samplesPerPixel) {
-    LOG_VERBOSE("Starting lens flare rendering with %d lights", lights.size());
-    if (elementInterfaces.size() < 2) {
-        LOG_VERBOSE("Not enough lens elements for flare: %d", elementInterfaces.size());
-        return;
-    }
-
-    const std::vector<ReflectionPair> reflectionEvents = GenerateReflectionEvents();
-    LOG_VERBOSE("Created %d reflection sequences", reflectionEvents.size());
-    if (reflectionEvents.empty()) {
-        LOG_VERBOSE("No internal reflections possible");
-        return; // No internal reflections possible
-    }
-    
-    LOG_VERBOSE("Processing %d lights with %d total flare samples", lights.size(), TOTAL_FLARE_SAMPLES);
-
-    ParallelFor(0, TOTAL_FLARE_SAMPLES, [&](const int globalSampleIndex) {
-        // Determine which light this sample belongs to
-        const int lightIndex = globalSampleIndex % lights.size();
-        const int localSampleIndex = globalSampleIndex / lights.size();
-        const Light light = lights[lightIndex];
-
-        TraceFlareRay(light, reflectionEvents, lightIndex, localSampleIndex, film);
-    });
-    LOG_VERBOSE("Finished lens flare rendering");
-}
-
 RealisticCamera *RealisticCamera::Create(const ParameterDictionary &parameters,
                                          const CameraTransform &cameraTransform,
                                          Film film, Medium medium, const FileLoc *loc,
@@ -1533,6 +1322,8 @@ RealisticCamera *RealisticCamera::Create(const ParameterDictionary &parameters,
     std::string lensFile = ResolveFilename(parameters.GetOneString("lensfile", ""));
     Float apertureDiameter = parameters.GetOneFloat("aperturediameter", 1.0);
     Float focusDistance = parameters.GetOneFloat("focusdistance", 10.0);
+    int flareSamples = parameters.GetOneInt("flaresamples", 1000000000);
+    bool sellmeier = parameters.GetOneBool("sellmeier", false);
 
     if (lensFile.empty()) {
         Error(loc, "No lens description file supplied!");
@@ -1544,13 +1335,10 @@ RealisticCamera *RealisticCamera::Create(const ParameterDictionary &parameters,
         Error(loc, "Error reading lens specification file \"%s\".", lensFile);
         return nullptr;
     }
-    if (lensParameters.size() % 4 != 0) {
-        Error(loc,
-              "%s: excess values in lens specification file; "
-              "must be multiple-of-four values, read %d.",
-              lensFile, (int)lensParameters.size());
-        return nullptr;
-    }
+    //if (lensParameters.size() % 4 != 0) {
+    //    Error(loc, "%s: excess values in lens specification file; " "must be multiple-of-four values, read %d.", lensFile, (int)lensParameters.size());
+    //    return nullptr;
+    //}
 
     int builtinRes = 256;
     auto rasterize = [&](pstd::span<const Point2f> vert) {
@@ -1667,8 +1455,344 @@ RealisticCamera *RealisticCamera::Create(const ParameterDictionary &parameters,
     }
 
     return alloc.new_object<RealisticCamera>(cameraBaseParameters, lensParameters,
-                                             focusDistance, apertureDiameter,
+                                             focusDistance, apertureDiameter, flareSamples, sellmeier,
                                              std::move(apertureImage), alloc);
 }
 
-}  // namespace pbrt
+PBRT_CPU_GPU inline Float RealisticCamera::Sellmeier(
+const Float wavelengthNm,
+const Float B1, const Float B2, const Float B3,
+const Float C1, const Float C2, const Float C3) const
+{
+    // Convert wavelength from nm to μm for Sellmeier formula
+    const Float lambda = wavelengthNm / 1000.0f;
+    const Float lambda2 = lambda * lambda;
+    
+    // Sellmeier equation: n^2(lam) = 1 + B1 * lam^2/(lam^2-C1) + B2*lam^2/(lam^2-C2) + B3* lam^2/(lam^2-C3)
+    const Float n_squared = 1.0f + (B1 * lambda2) / (lambda2 - C1) + (B2 * lambda2) / (lambda2 - C2) + (B3 * lambda2) / (lambda2 - C3);
+    
+    return std::sqrt(n_squared);
+}
+
+std::vector<ReflectionPair> RealisticCamera::GenerateReflectionEvents() const {
+    const int totalSequenceCount =
+        elementInterfaces.size() * (elementInterfaces.size() - 2) / 2;
+
+    std::vector<ReflectionPair> events;
+    events.reserve(totalSequenceCount);
+
+    for (int reflectTo = 0; reflectTo < elementInterfaces.size(); reflectTo++) {
+        for (int reflectFrom = elementInterfaces.size() - 1; reflectFrom > reflectTo; reflectFrom--) {
+
+            const bool involvesAperture =
+                (elementInterfaces[reflectTo].curvatureRadiusX == 0) ||
+                (elementInterfaces[reflectFrom].curvatureRadiusX == 0);
+
+            if (involvesAperture)
+                continue;
+
+            // Ray goes forward to reflectFrom, then back to reflectTo
+            events.emplace_back(reflectFrom, reflectTo);
+        }
+    }
+
+    return events;
+}
+
+bool RealisticCamera::AdvanceRayThroughElements(
+    Ray &ray,
+    const int elementIndex,
+    const Float frontZ,
+    const LensElementInterface *elements,
+    Float wavelengthNm) const
+{
+    const LensElementInterface &element = elements[elementIndex];
+
+    // Compute element Z position
+    Float elementZ = frontZ;
+    for (int j = 0; j < elementIndex; j++)
+        elementZ += elements[j].thickness;
+
+    Float t;
+    Normal3f n;
+    const bool isStop = (element.curvatureRadiusX == 0);
+
+    if (isStop) {
+        t = (elementZ - ray.o.z) / ray.d.z;
+        if (t < 0) return false;
+    } else {
+        Float zCenter = elementZ + element.curvatureRadiusX;
+        // Use unified intersection function
+        if (!IntersectLensElement(element.curvatureRadiusX, element.curvatureRadiusY, 
+                                  zCenter, ray, &t, &n))
+            return false;
+    }
+
+    const Point3f pHit = ray(t);
+    if (Sqr(pHit.x) + Sqr(pHit.y) > Sqr(element.apertureRadius))
+        return false;
+
+    ray.o = pHit;
+
+    if (!isStop) {
+        // Get refractive indices (either wavelength-dependent or simple eta)
+        Float eta_i = 1.0f; // Air by default
+        Float eta_t;
+        
+        if (sellmeier) {
+            // Full chromatic dispersion using Sellmeier
+            if (elementIndex > 0) {
+                const LensElementInterface& prevElement = elements[elementIndex - 1];
+                eta_i = Sellmeier(wavelengthNm, prevElement.B1, prevElement.B2, prevElement.B3,
+                                prevElement.C1, prevElement.C2, prevElement.C3);
+            }
+            eta_t = Sellmeier(wavelengthNm, element.B1, element.B2, element.B3,
+                            element.C1, element.C2, element.C3);
+        } else {
+            // Use simple eta values (monochromatic)
+            if (elementIndex > 0 && elements[elementIndex - 1].eta != 1.0f) {
+                eta_i = elements[elementIndex - 1].eta;
+            }
+            eta_t = element.eta;
+        }
+        
+        Vector3f wt;
+        if (!Refract(Normalize(-ray.d), n, eta_t / eta_i, nullptr, &wt))
+            return false;
+
+        ray.d = wt;
+    }
+
+    return true;
+}
+
+// Perfect mirror reflection at a lens surface + Fresnel attenuation
+Float RealisticCamera::ReflectAtElement(
+    Ray& ray,
+    int elementIndex,
+    Float frontZ,
+    Float wavelengthNm) const
+{
+    const LensElementInterface &element = elementInterfaces[elementIndex];
+
+    Float reflectZ = frontZ;
+    for (int j = 0; j < elementIndex; j++)
+        reflectZ += elementInterfaces[j].thickness;
+
+    const Float zCenter = reflectZ + element.curvatureRadiusX;
+
+    Float t;
+    Normal3f n;
+    // Use unified intersection function
+    if (!IntersectLensElement(element.curvatureRadiusX, element.curvatureRadiusY, zCenter, ray, &t, &n))
+        return 0.0f;
+
+    const Point3f pReflect = ray(t);
+    if (Sqr(pReflect.x) + Sqr(pReflect.y) > Sqr(element.apertureRadius))
+        return 0.0f;
+
+    ray.o = pReflect;
+
+    const Vector3f incident = Normalize(ray.d);
+    ray.d = Normalize(incident - 2 * Dot(incident, n) * Vector3f(n));
+
+    // Calculate Fresnel reflectance for this wavelength
+    const Float cosTheta = AbsDot(ray.d, n);
+    
+    Float eta;
+    if (sellmeier) {
+        eta = Sellmeier(wavelengthNm, element.B1, element.B2, element.B3,
+                       element.C1, element.C2, element.C3);
+    } else {
+        eta = element.eta;
+    }
+
+    return FrDielectric(cosTheta, eta);
+}
+
+// Trace a single flare ray with chromatic dispersion
+// Helper function to trace a ray through the lens system with reflections
+bool RealisticCamera::TraceFlareRayPath(
+    Ray& ray,
+    const ReflectionPair& event,
+    Float frontZ,
+    Float wavelengthNm,
+    Float& intensityScale) const
+{
+    // To first reflection
+    for (int i = 0; i < event.reflectFrom; i++) {
+        if (!AdvanceRayThroughElements(ray, i, frontZ, elementInterfaces.data(), wavelengthNm))
+            return false;
+    }
+
+    Float reflectance = ReflectAtElement(ray, event.reflectFrom, frontZ, wavelengthNm);
+    if (reflectance == 0.0f) return false;
+    intensityScale *= reflectance;
+
+    // Between reflections
+    for (int i = event.reflectFrom + 1; i < event.reflectTo; i++) {
+        if (!AdvanceRayThroughElements(ray, i, frontZ, elementInterfaces.data(), wavelengthNm))
+            return false;
+    }
+
+    reflectance = ReflectAtElement(ray, event.reflectTo, frontZ, wavelengthNm);
+    if (reflectance == 0.0f) return false;
+    intensityScale *= reflectance;
+
+    // To film
+    for (int i = event.reflectTo + 1; i < elementInterfaces.size(); i++) {
+        if (!AdvanceRayThroughElements(ray, i, frontZ, elementInterfaces.data(), wavelengthNm))
+            return false;
+    }
+
+    return true;
+}
+
+// Trace a single flare ray with chromatic dispersion
+void RealisticCamera::TraceFlareRay(
+    const Light& light,
+    const std::vector<ReflectionPair>& reflectionEvents,
+    int lightSampleIndex,
+    int sampleIndex)
+{
+    // Sample light emission
+    const Point2f u1(RadicalInverse(0, lightSampleIndex + sampleIndex),
+               RadicalInverse(1, lightSampleIndex + sampleIndex));
+    const Point2f u2(RadicalInverse(2, lightSampleIndex + sampleIndex),
+               RadicalInverse(3, lightSampleIndex + sampleIndex));
+
+    const Float wavelengthSample = RadicalInverse(6, lightSampleIndex + sampleIndex);
+    const Float reflectionEventSample = RadicalInverse(7, lightSampleIndex + sampleIndex);
+    SampledWavelengths lambda = SampledWavelengths::SampleVisible(wavelengthSample);
+    auto leSample = light.SampleLe(u1, u2, lambda, 0);
+    if (!leSample) return;
+
+    SampledSpectrum baseIntensity = leSample->L;
+    if (!baseIntensity || leSample->pdfPos == 0 || leSample->pdfDir == 0) return;
+
+    // Choose reflection event
+    const int eventIndex =
+        std::min(static_cast<int>(reflectionEventSample * reflectionEvents.size()),
+                 static_cast<int>(reflectionEvents.size() - 1));
+
+    const ReflectionPair &event = reflectionEvents[eventIndex];
+
+    // Sample point on first lens surface
+    const Point2f disk = SampleUniformDiskConcentric(
+        Point2f(RadicalInverse(4, lightSampleIndex + sampleIndex),
+                RadicalInverse(5, lightSampleIndex + sampleIndex)));
+
+    const Point2f pLens2d = elementInterfaces[0].apertureRadius * disk;
+    const Float frontZ = -LensFrontZ();
+
+    Point3f pLens(pLens2d.x, pLens2d.y, frontZ + elementInterfaces[0].curvatureRadiusX);
+
+    const Transform cameraFromLens = Scale(1, 1, -1);
+    pLens = cameraFromLens(pLens);
+
+    Ray rayBase(leSample->ray.o, Normalize(pLens - leSample->ray.o));
+    rayBase = Ray(Point3f(rayBase.o.x, rayBase.o.y, -rayBase.o.z),
+                  Vector3f(rayBase.d.x, rayBase.d.y, -rayBase.d.z));
+
+    if (sellmeier) {
+        // SELLMEIER MODE: Trace each wavelength separately for chromatic dispersion
+        for (int waveIdx = 0; waveIdx < NSpectrumSamples; waveIdx++) {
+            const Float wavelengthNm = lambda[waveIdx];
+            Ray ray = rayBase;
+            Float intensityScale = 1.0f;
+
+            if (!TraceFlareRayPath(ray, event, frontZ, wavelengthNm, intensityScale))
+                continue;
+
+            // Hit film plane
+            if (std::abs(ray.d.z) < 1e-6f) continue;
+
+            const Float tFilm = -ray.o.z / ray.d.z;
+            Point3f pFilm = ray(tFilm);
+            pFilm = Point3f(pFilm.x, pFilm.y, -pFilm.z);
+
+            if (!Inside(Point2f(pFilm.x, pFilm.y), physicalExtent))
+                continue;
+
+            const Vector2f raster = physicalExtent.Offset(Point2f(pFilm.x, pFilm.y));
+
+            const Point2i pixel(
+                Clamp(static_cast<int>(raster.x * film.FullResolution().x), 0,
+                      film.FullResolution().x - 1),
+                Clamp(static_cast<int>(raster.y * film.FullResolution().y), 0,
+                      film.FullResolution().y - 1));
+
+            // Apply attenuation to only THIS wavelength's intensity
+            SampledSpectrum contribution(0.0f);
+            contribution[waveIdx] = baseIntensity[waveIdx] * intensityScale;
+
+            // Normalize by total number of samples
+            const SampledSpectrum normalizedContribution = contribution / 
+                static_cast<Float>(flareSamples);
+
+            film.AddSplat(Point2f(pixel.x + 0.5f, pixel.y + 0.5f), normalizedContribution, lambda);
+        }
+    } else {
+        // ETA MODE: Single ray trace (no chromatic dispersion)
+        const Float wavelengthNm = lambda[NSpectrumSamples / 2];
+        Ray ray = rayBase;
+        Float intensityScale = 1.0f;
+
+        if (!TraceFlareRayPath(ray, event, frontZ, wavelengthNm, intensityScale))
+            return;
+
+        // Hit film plane
+        if (std::abs(ray.d.z) < 1e-6f) return;
+
+        const Float tFilm = -ray.o.z / ray.d.z;
+        Point3f pFilm = ray(tFilm);
+        pFilm = Point3f(pFilm.x, pFilm.y, -pFilm.z);
+
+        if (!Inside(Point2f(pFilm.x, pFilm.y), physicalExtent))
+            return;
+
+        const Vector2f raster = physicalExtent.Offset(Point2f(pFilm.x, pFilm.y));
+
+        const Point2i pixel(
+            Clamp(static_cast<int>(raster.x * film.FullResolution().x), 0,
+                  film.FullResolution().x - 1),
+            Clamp(static_cast<int>(raster.y * film.FullResolution().y), 0,
+                  film.FullResolution().y - 1));
+
+        // Apply uniform attenuation to ALL wavelengths
+        const SampledSpectrum attenuatedIntensity = baseIntensity * intensityScale;
+
+        // Normalize by total number of samples
+        const SampledSpectrum normalizedIntensity = attenuatedIntensity / static_cast<Float>(flareSamples);
+
+        film.AddSplat(Point2f(pixel.x + 0.5f, pixel.y + 0.5f), normalizedIntensity, lambda);
+    }
+}
+
+void RealisticCamera::RenderLensFlare(const std::vector<Light> &lights) {
+    LOG_VERBOSE("Starting lens flare rendering with %d lights", lights.size());
+    if (elementInterfaces.size() < 2) {
+        LOG_VERBOSE("Not enough lens elements for flare: %d", elementInterfaces.size());
+        return;
+    }
+
+    const std::vector<ReflectionPair> reflectionEvents = GenerateReflectionEvents();
+    LOG_VERBOSE("Created %d reflection sequences", reflectionEvents.size());
+    if (reflectionEvents.empty()) {
+        LOG_VERBOSE("No internal reflections possible");
+        return;
+    }
+    
+    LOG_VERBOSE("Processing %d lights with %d total flare samples", lights.size(), flareSamples);
+
+    ParallelFor(0, flareSamples, [&](const int globalSampleIndex) {
+        const int lightIndex = globalSampleIndex % lights.size();
+        const int localSampleIndex = globalSampleIndex / lights.size();
+        const Light light = lights[lightIndex];
+
+        TraceFlareRay(light, reflectionEvents, lightIndex, localSampleIndex);
+    });
+    LOG_VERBOSE("Finished lens flare rendering");
+}
+
+}

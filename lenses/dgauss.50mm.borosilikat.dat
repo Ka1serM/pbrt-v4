@@ -1,0 +1,28 @@
+# D-GAUSS F/2 22deg HFOV (US Patent 2,673,491 Tronnier)
+# Modern Lens Design, p.312
+# Scaled to 50 mm from 100 mm
+# Format: radX radY thickness aperture eta B1 B2 B3 C1 C2 C3
+# Einheiten: mm (werden im Code nach m konvertiert)
+
+# Element 1 - Crown glass
+29.475    29.475    3.76    25.2    1.67      1.03961212 0.231792344 1.01046945 0.00600069867 0.0200179144 103.560653
+# Luftabstand
+84.83     84.83     0.12    25.2    1.0       0 0 0 0 0 0
+# Element 2 - Crown glass
+19.275    19.275    4.025   23      1.67      1.03961212 0.231792344 1.01046945 0.00600069867 0.0200179144 103.560653
+# Element 3 - Flint glass
+40.77     40.77     3.275   23      1.699     1.03961212 0.231792344 1.01046945 0.00600069867 0.0200179144 103.560653
+# Luftabstand vor Blende
+12.75     12.75     5.705   18      1.0       0 0 0 0 0 0
+# APERTURE STOP (Blende)
+0         0         4.5     17.1    1.0       0 0 0 0 0 0
+# Element 4 - Flint glass
+-14.495   -14.495   1.18    17      1.603     1.03961212 0.231792344 1.01046945 0.00600069867 0.0200179144 103.560653
+# Element 5 - Crown glass
+40.77     40.77     6.065   20      1.658     1.03961212 0.231792344 1.01046945 0.00600069867 0.0200179144 103.560653
+# Luftabstand
+-20.385   -20.385   0.19    20      1.0       0 0 0 0 0 0
+# Element 6 - Dense flint glass
+437.065   437.065   3.22    20      1.717     1.03961212 0.231792344 1.01046945 0.00600069867 0.0200179144 103.560653
+# Letztes Interface (Abstand zum Film wird durch FocusThickLens überschrieben)
+-39.73    -39.73    0       20      1.0       0 0 0 0 0 0

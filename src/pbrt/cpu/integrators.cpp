@@ -215,8 +215,7 @@ void ImageTileIntegrator::Render() {
                 // If we are using RealisticCamera, render the lens flares
                 if (camera.Is<RealisticCamera>()) {
                     RealisticCamera *realisticCamera = camera.Cast<RealisticCamera>();
-                    Film film = camera.GetFilm();
-                    realisticCamera->RenderLensFlare(film, this->lights, samplerPrototype.SamplesPerPixel());
+                    realisticCamera->RenderLensFlare(this->lights);
                 }
 
                 camera.InitMetadata(&metadata);
