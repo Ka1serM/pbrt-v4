@@ -101,15 +101,51 @@ Lens Flares entstehen primär durch Pfade mit zwei internen Reflexionen. Da der 
 Bei zwei Reflexionen ergibt sich eine Wahrscheinlichkeit im Bereich von $0.04 \cdot 0.04 = 0.0016$ ($0.16\%$).
 Ein Monte-Carlo-Integrator benötigt unzählige Samples, um solche seltenen Pfade zu finden. Das Ergebnis war ein Bild, das fast ausschließlich aus Rauschen bestand oder komplett schwarz blieb, da kaum ein Strahl zufällig die korrekte Sequenz (Licht $\to$ Linse $\to$ Reflexion $\to$ Reflexion $\to$ Sensor) fand.
 
-
 **Ansatz 2: Explizite Kombinatorik (Finaler Ansatz)**   
 
 Um das Rauschproblem zu lösen, wurde das probabilistische Sampling-Problem in ein **kombinatorisches Enumerations-Problem** überführt, basierend auf der Methode von *Hullin et al. (2011)*.
 Anstatt darauf zu warten, dass ein Strahl zufällig reflektiert wird, werden alle möglichen Reflexionspaare explizit generiert. Der Algorithmus zwingt den Strahl deterministisch, an zwei spezifischen Flächen zu reflektieren. Dadurch wird garantiert, dass jeder berechnete Strahl zum gewünschten Ghost-Effekt beiträgt, sofern er nicht durch die Apertur blockiert wird.
 
-![alt text](<Screenshot 2025-12-16 150944.png>)
+![alt text](<Screenshot 2025-12-16 150944.png>)*Abbildung 1: Explizite Kombinatorik*
 
-### 3.2 Klassen- und Softwarearchitektur
+### 3.3 Szenen- / Versuchsaufbau
+Für die Untersuchung der Lens-Flare-Effekte wurde eine stark vereinfachte, synthetische Szene verwendet. Die Szene wird mit der realisticCamera Klasse gerendert, die ein physikalisch beschriebenes 50mm double gauss Linsenmodell nutzt. Der Blendendurchmesser ist mit 3 mm neutral gewählt, um das Auftreten von Lens-Flares nicht zu behindern und diese dennoch Scharf zu halten.
+
+Als Lichtquelle dient ein extrem helles, diffuses Flächenlicht, das in großer Entfernung zur Kamera positioniert ist und durch eine kleine Kugel näherungsweise punktförmig realisiert wird. Weitere Geometrien oder Lichtquellen sind nicht vorhanden, wodurch ein vollständig schwarzer Hintergrund entsteht.
+
+### 3.4 Mess- und Bewertungsschema
+
+Da sich Lens-Flares als Folge komplexer, mehrfacher interner Reflexionen im Linsensystem nur eingeschränkt analytisch beschreiben lassen, wurde in dieser Arbeit auf eine rein formelbasierte Validierung verzichtet. Stattdessen erfolgte die Bewertung der Ergebnisse primär **qualitativ-visuell** anhand von Referenzbeobachtungen aus der realen Fotografie und bekannten Darstellungen aus der Literatur.
+
+Die erzeugten Lens-Flares wurden hinsichtlich ihrer  
+- **räumlichen Lage**
+- **Form**
+- **spektralen Eigenschaften** (chromatische Aberration, Farbverläufe)  
+
+analysiert und mit typischen Erscheinungsformen realer Objektive verglichen. Dabei zeigte sich, dass die simulierten Effekte in Struktur und Verhalten mit den erwarteten optischen Phänomenen gut übereinstimmen.
+
+Ergänzend wurde versucht, die Resultate mit einer professionellen Optiksimulationssoftware zu vergleichen. Hierzu kam das Programm **Zemax OpticStudio** zum Einsatz. In der verwendeten Version stand jedoch die **Ghost-Tracing** Funktionalität nicht zur Verfügung, sodass ein direkter Vergleich der simulierten Lens-Flares mit einer optischen Referenzsimulation nicht möglich war. 
+
+## 4 Implementierung
+
+### 4.1 Datenstrukturen
+Die bestehende Linsenbeschreibung von PBRT bildet die Grundlage der Erweiterung.
+
+*   **LensElementInterface:**
+    Diese Struktur repräsentiert eine einzelne Grenzfläche. Sie wurde um `curvatureRadiusX` und `curvatureRadiusY` für anamorphotische Linsen erweitert.
+    Zusätzlich speichert die Struktur die **Sellmeier-Koeffizienten** ($B_{1..3}, C_{1..3}$) zur Simulation der chromatischen Aberration (Dispersion). Der wellenlängenabhängige Brechungsindex $\eta(\lambda)$ berechnet sich zur Laufzeit gemäß der Sellmeier-Gleichung:
+    
+    $$
+    n^2(\lambda) = 1 + \sum_{i=1}^{3} \frac{B_i \lambda^2}{\lambda^2 - C_i}
+    $$
+    
+    Wobei $\lambda$ die Wellenlänge in Mikrometern ist.
+
+*   **ReflectionPair:**
+    Ein `ReflectionPair` beschreibt ein geordnetes Paar zweier Linsenflächen (`reflectFrom`, `reflectTo`). Diese Paare repräsentieren Reflexionspfade zweiter Ordnung.
+
+### 4.2 Klassen- und Softwarearchitektur
+
 Die Implementierung gliedert sich nahtlos in die bestehende Objektstruktur ein. Die Klasse `RealisticCamera` wird um spezifische Methoden zur Flare-Berechnung erweitert.
 
 ```mermaid
@@ -209,45 +245,6 @@ sequenceDiagram
 
 </br>
 
-### 3.3 Szenen- / Versuchsaufbau
-Für die Untersuchung der Lens-Flare-Effekte wurde eine stark vereinfachte, synthetische Szene verwendet. Die Szene wird mit der realisticCamera Klasse gerendert, die ein physikalisch beschriebenes 50mm double gauss Linsenmodell nutzt. Der Blendendurchmesser ist mit 3 mm neutral gewählt, um das Auftreten von Lens-Flares nicht zu behindern und diese dennoch Scharf zu halten.
-
-Als Lichtquelle dient ein extrem helles, diffuses Flächenlicht, das in großer Entfernung zur Kamera positioniert ist und durch eine kleine Kugel näherungsweise punktförmig realisiert wird. Weitere Geometrien oder Lichtquellen sind nicht vorhanden, wodurch ein vollständig schwarzer Hintergrund entsteht.
-
-### 3.4 Mess- und Bewertungsschema
-
-Da sich Lens-Flares als Folge komplexer, mehrfacher interner Reflexionen im Linsensystem nur eingeschränkt analytisch beschreiben lassen, wurde in dieser Arbeit auf eine rein formelbasierte Validierung verzichtet. Stattdessen erfolgte die Bewertung der Ergebnisse primär **qualitativ-visuell** anhand von Referenzbeobachtungen aus der realen Fotografie und bekannten Darstellungen aus der Literatur.
-
-Die erzeugten Lens-Flares wurden hinsichtlich ihrer  
-- **räumlichen Lage**,  
-- **Form**,
-- **spektralen Eigenschaften** (chromatische Aberration, Farbverläufe)  
-
-analysiert und mit typischen Erscheinungsformen realer Objektive verglichen. Dabei zeigte sich, dass die simulierten Effekte in Struktur und Verhalten mit den erwarteten optischen Phänomenen gut übereinstimmen.
-
-Ergänzend wurde versucht, die Resultate mit einer professionellen Optiksimulationssoftware zu vergleichen. Hierzu kam das Programm **Zemax OpticStudio** zum Einsatz. In der verwendeten Version stand jedoch die **Ghost-Tracing** Funktionalität nicht zur Verfügung, sodass ein direkter Vergleich der simulierten Lens-Flares mit einer optischen Referenzsimulation nicht möglich war. 
-
-## 4 Implementierung
-
-### 4.1 Datenstrukturen
-Die bestehende Linsenbeschreibung von PBRT bildet die Grundlage der Erweiterung.
-
-*   **LensElementInterface:**
-    Diese Struktur repräsentiert eine einzelne Grenzfläche. Sie wurde um `curvatureRadiusX` und `curvatureRadiusY` für anamorphotische Linsen erweitert.
-    Zusätzlich speichert die Struktur die **Sellmeier-Koeffizienten** ($B_{1..3}, C_{1..3}$) zur Simulation der chromatischen Aberration (Dispersion). Der wellenlängenabhängige Brechungsindex $\eta(\lambda)$ berechnet sich zur Laufzeit gemäß der Sellmeier-Gleichung:
-    
-    $$
-    n^2(\lambda) = 1 + \sum_{i=1}^{3} \frac{B_i \lambda^2}{\lambda^2 - C_i}
-    $$
-    
-    Wobei $\lambda$ die Wellenlänge in Mikrometern ist.
-
-*   **ReflectionPair:**
-    Ein `ReflectionPair` beschreibt ein geordnetes Paar zweier Linsenflächen (`reflectFrom`, `reflectTo`). Diese Paare repräsentieren Reflexionspfade zweiter Ordnung.
-
-### 4.2 Kernfunktionen der RealisticCamera
-Die Implementierung der Lens-Flares erfolgt innerhalb der Klasse `RealisticCamera`. 
-
 **Generierung der Reflexionsereignisse**
 In der Funktion `GenerateReflectionEvents()` werden alle möglichen Kombinationen von zwei reflektierenden Linsenflächen erzeugt. Gemäß Hullin et al. (2011) berechnet sich die Anzahl $N_{ghosts}$ der möglichen Pfade 2. Ordnung für ein System mit $n$ Elementen wie folgt:
 
@@ -270,17 +267,39 @@ Die Lichtquellen werden nicht innerhalb der Kamera definiert, sondern vom Integr
 
 Der bestehende Integrator von PBRT wurde hierfür um einen zusätzlichen Verarbeitungsschritt nach dem regulären Rendering erweitert. Nach Abschluss der Bildberechnung wird geprüft, ob die verwendete Kamera eine RealisticCamera ist. In diesem Fall wird die Funktion `RenderLensFlare()` aufgerufen, welche die Lens-Flare-Beiträge berechnet und additiv auf dem Film akkumuliert. Der eigentliche Integrationsalgorithmus zur Berechnung der globalen Beleuchtung bleibt dabei unverändert.
 
-### 4.4 Zylinderlinsen und Anamorphie
-Zylindrische beziehungsweise anamorphotische Linsen unterscheiden sich von sphärischen Linsen durch eine richtungsabhängige Krümmung und besitzen daher keine Rotationssymmetrie. Während sphärische Linsen durch identische Krümmungsradien in allen Richtungen beschrieben werden können, gilt für zylindrische Linsen $R_x \neq R_y$. Diese Anisotropie hat sowohl geometrische als auch abbildungstechnische Konsequenzen.
+## 4.4 Zylinderlinsen und Anamorphie
 
-Für eine korrekte Unterstützung zylindrischer Linsen sind zwei Aspekte entscheidend:
+Zylindrische beziehungsweise anamorphotische Linsen unterscheiden sich von sphärischen Linsen durch eine richtungsabhängige Krümmung und besitzen keine Rotationssymmetrie. Während sphärische Linsen durch identische Krümmungsradien beschrieben werden können, gilt für zylindrische Linsen: $R_x \neq R_y$
 
-1.  **Intersection und Normalenberechnung:** Die Schnittberechnung mit zylindrischen Linsenflächen unterscheidet sich von der sphärischen Variante, da die Krümmung nur in einer Achse berücksichtigt wird. Entsprechend muss auch die Berechnung der Oberflächennormale $\vec{n}$ an die anisotrope Geometrie angepasst werden. Eine korrekte Normalenberechnung ist dabei essenziell, da bereits geringe Abweichungen zu fehlerhaften Brechungs- oder Reflexionsrichtungen führen und Strahlen das Linsensystem frühzeitig verlassen können.
+Diese Anisotropie ist die Ursache charakteristischer anamorphotischer Bildartefakte, insbesondere horizontal ausgeprägter Lens-Flares.
 
-2.  **Fokusberechnung:** Ein zentrales Problem bei der Integration zylindrischer Linsen ist die Fokusberechnung. Durch den auftretenden Astigmatismus existiert kein singulärer Fokuspunkt, an dem beide Raumrichtungen gleichzeitig scharf abgebildet werden. Das in PBRT verwendete Fokusmodell basiert auf einer Thick-Lens-Approximation, die das gesamte Linsensystem durch eine einzige effektive Brennweite beschreibt und Rotationssymmetrie voraussetzt. Dieses Modell ist daher für zylindrische Linsen nur eingeschränkt anwendbar.
-Eine physikalisch korrekte Abbildung würde eine numerische Fokus-Suche erfordern, bei der die Spotgröße auf der Filmebene minimiert wird, beispielsweise über den RMS-Spot-Radius getrennt in horizontaler und vertikaler Richtung oder als kombinierte Optimierung beider Achsen.
- 
-Zur konzeptionellen Auslegung der zylindrischen Linsenelemente wurde ein reales anamorphotisches Objektivdesign aus der Patentliteratur als Vorlage herangezogen. Dabei diente das europäische Patent EP 3825750 A1 als Referenz, da es einen übersichtlichen anamorphotischen Aufbau beschreibt, bei dem die richtungsabhängige Abbildung primär durch eine klar abgegrenzte Gruppe zylindrischer Linsen erzeugt wird, während nachgelagerte Linsenelemente für die eigentliche Bildabbildung verantwortlich sind.
+Für die Integration zylindrischer Linsen sind insbesondere zwei Aspekte relevant:
+
+### Intersection und Normalenberechnung
+
+Die Schnittberechnung mit zylindrischen Linsenflächen unterscheidet sich grundlegend von der sphärischen Variante. Während sphärische Flächen durch eine rotationssymmetrische Kugelgleichung beschrieben werden, ergibt sich für zylindrische Flächen eine quadratische Gleichung, bei der die Krümmung ausschließlich in einer Raumrichtung wirksam ist.
+
+In der Implementierung wird beim Ray–Lens-Intersection-Test abhängig vom Typ des jeweiligen `LensElementInterface` entschieden, welche Intersectionsroutine verwendet wird. Für sphärische Linsen kommt die klassische Kugelgleichung zum Einsatz, für zylindrische Linsen eine angepasste quadratische Gleichung mit anisotroper Krümmung.
+
+Eine besondere Rolle spielt die Berechnung der Oberflächennormale $\vec{n}$, da sie unmittelbar die Richtung von Brechung und Reflexion bestimmt. Bereits geringe numerische Abweichungen führen zu deutlich fehlerhaften Strahlverläufen. In der praktischen Umsetzung zeigte sich, dass solche Ungenauigkeiten häufig dazu führen, dass Strahlen das Linsensystem vorzeitig verlassen.
+
+### Fokusberechnung und Astigmatismus
+
+Ein zentrales Problem bei zylindrischen Linsen ist die Fokusberechnung. Durch den entstehenden Astigmatismus existiert kein singulärer Fokuspunkt, an dem beide Raumrichtungen gleichzeitig scharf abgebildet werden. Stattdessen ergeben sich unterschiedliche Fokuslagen für horizontale und vertikale Achse.
+
+Das in PBRT verwendete Fokusmodell basiert auf einer Thick-Lens-Approximation und setzt Rotationssymmetrie voraus. Diese Annahme ist für zylindrische beziehungsweise anamorphotische Linsen nicht erfüllt und führt in der Praxis zu instabilen Fokuslagen sowie zu unscharfen oder verzerrten Lens-Flares.
+
+Eine physikalisch korrekte Abbildung würde eine numerische Fokus-Suche erfordern, beispielsweise durch:
+
+- getrennte Optimierung der Fokuslage in horizontaler und vertikaler Richtung,
+- oder eine kombinierte Optimierung über einen RMS-Spot-Radius auf der Filmebene.
+
+Eine solche Fokusstrategie geht jedoch über das in PBRT v4 vorgesehene Kameramodell hinaus und wurde im Rahmen dieser Arbeit nicht vollständig umgesetzt.
+
+Zur konzeptionellen Auslegung der zylindrischen Linsenelemente wurde ein reales anamorphotisches Objektivdesign aus der Patentliteratur als Orientierung herangezogen. Als Referenz diente das europäische Patent **EP 3825750 A1**, das einen vergleichsweise übersichtlichen anamorphotischen Aufbau beschreibt, bei dem die richtungsabhängige Abbildung durch eine klar abgegrenzte Gruppe zylindrischer Linsen erzeugt wird.
+
+Dieses Konzept ließ sich grundsätzlich auf das implementierte Linsensystem übertragen, erwies sich in der praktischen Umsetzung jedoch als numerisch anspruchsvoll. Die Kombination aus anisotroper Geometrie, rotationssymmetrischem Fokusmodell und numerischen Stabilitätsproblemen verhinderte eine robuste Simulation. Zylindrisch beeinflusste Lens-Flares konnten zwar konzeptionell erzeugt werden, erreichten jedoch noch nicht die gewünschte Stabilität und Bildqualität.
+
 
 ### 4.5 Kamera- und Szenenparameter für Lens-Flares
 
@@ -302,14 +321,34 @@ Zur Steuerung der Lens-Flare-Simulation wurden zwei zentrale Parameter in die Ka
 In den definierten Testszenen treten reproduzierbar Lens-Flares in Form von Ghost-Artefakten auf.
 
 *   **Positionsabhängigkeit:** Bei Lichtquellen nahe des Bildzentrums entstehen symmetrisch angeordnete Ghosts entlang der optischen Achse. Wird die Lichtquelle zum Rand verschoben, verlagern sich die Artefakte und werden durch das Objektivgehäuse beschnitten (Vignettierung).
+    *   *Zwei Lichtquellen (Abb. 2):* Überlappung der Flares.
+    *   *Lichtquelle befindet sich nicht im Bild  (Abb. 3):* Nur Flares im Bild sichtbar
 *   **Apertur-Einfluss:** Die Form der Artefakte entspricht näherungsweise der Projektion der Blendenöffnung. Größere Aperturen führen zu weicheren Artefakten, während kleine Aperturen scharfe Konturen erzeugen.
 *   **Qualitätssteigerung:**
-    *   *Baseline (Abb. 1):* Überhöhte Intensität und starkes Rauschen.
-    *   *Fresnel-Korrektur (Abb. 2):* Realistische Intensitätsabnahme.
-    *   *Sampling (Abb. 3):* Konvergenz und Rauschunterdrückung durch erhöhte Samplezahlen.
-    *   *Spektrale Korrektur (Abb. 4):* Plausible Farbsäume (chromatische Aberration) ohne falsche Muster.
+    *   *Baseline (Abb. 4):* Überhöhte Intensität und starkes Rauschen.
+    *   *Fresnel-Korrektur (Abb. 5):* Realistische Intensitätsabnahme.
+    *   *Sampling (Abb. 6):* Konvergenz und Rauschunterdrückung durch erhöhte Samplezahlen.
+    *   *Spektrale Korrektur (Abb. 7):* Plausible Farbsäume (chromatische Aberration) ohne falsche Muster.
+    
+![alt text](flare-two-lightsources.png)
+*Abbildung 2: Two Lightsources*
 
-*Abbildung 1: Baseline | Abbildung 2: Mit Fresnel | Abbildung 3: High Sampling | Abbildung 4: Spektral korrigiert*
+![alt text](flare-hidden-lightsource.png)
+*Abbildung 3: Lightsources out of the Picture*
+
+![alt text](Baseline.png)
+*Abbildung 4: Baseline*
+
+![alt text](Fresnel.png)
+*Abbildung 5: Mit Fresnel*
+
+![alt text](<High Sampling.png>)
+*Abbildung 6: High Sampling* 
+
+![alt text](Spektral.jfif)
+*Abbildung 7: Spektral korrigiert*
+
+
 
 ### 5.2 Auswertung
 Die Qualität skaliert direkt mit der Sampleanzahl (Monte-Carlo-Konvergenz). Die Laufzeit verhält sich linear zur Anzahl der Flare-Samples. Anamorphotische Tests zeigten eine hohe Sensitivität bezüglich der Fokuslage, was die Notwendigkeit robuster Fokusstrategien unterstreicht.
@@ -320,6 +359,12 @@ Die Qualität skaliert direkt mit der Sampleanzahl (Monte-Carlo-Konvergenz). Die
 Die implementierte Lösung zeigt, dass die Beschränkung auf Reflexionen zweiter Ordnung einen hervorragenden Kompromiss zwischen visueller Qualität und Rechenaufwand darstellt. Die Ghost-Artefakte decken sich phänomenologisch mit Beobachtungen an realen Objektiven. Die sichtbaren farbigen Ränder (Dispersion) bestätigen die korrekte Implementierung der Sellmeier-Gleichung. Diese Gleichung macht den Brechungsindex wellenlängenabhängig.
 Dadurch werden verschiedene Farben unterschiedlich stark gebrochen und reflektiert.
 Bei mehrfachen internen Reflexionen in der Linse (Lens-Flares) laufen Rot, Grün und Blau leicht unterschiedliche Wege, treffen an verschiedenen Positionen und mit unterschiedlicher Intensität auf den Sensor und das erzeugt farbige Flares. Das verbleibende Rauschen in den Flares ist inhärent für Monte-Carlo-Verfahren, bei denen nur ein kleiner Raumwinkel des Lichts tatsächlich den Sensor erreicht ("Small Target Problem").
+
+![alt text](<Screenshot 2026-01-08 181001.png>)
+*Abbildung 8: Ohne Sellmeier*
+
+![alt text](<Screenshot 2026-01-08 181423.png>)
+*Abbildung 9: Mit Sellmeier*
 
 ### 6.2 Fehlerbetrachtung
 *   **Sampling-Rauschen:** Trotz hoher Samplezahlen verbleibt hochfrequentes Rauschen in den Randbereichen der Flares. Hier könnten fortgeschrittene Sampling-Methoden (z.B. Metropolis Light Transport) Abhilfe schaffen.
@@ -367,18 +412,12 @@ Darüber hinaus könnten gezielte Importance-Sampling-Strategien für relevante 
 7.  E. Pekkarinen and M. Balzer, “Physically based lens flare rendering in The Lego Movie 2,” in Proceedings of the 2019 Digital Production Symposium, Los Angeles, CA, USA: ACM, July 2019, pp. 1–3. doi: 10.1145/3329715.3338881.
 8.  H. Tang, "Rendering Realistic Lens Flare", Technischer Projektbericht mit PBRT-basierter Implementierung, 2011.
 
-## 9 Abbildungsverzeichnis
-*   **Abbildung 1:** Baseline-Ergebnis der Lens-Flare-Simulation (Seite 10)
-*   **Abbildung 2:** Lens-Flares mit korrekter Fresnel-Gewichtung (Seite 11)
-*   **Abbildung 3:** Reduziertes Rauschen durch High-Sampling (Seite 11)
-*   **Abbildung 4:** Finale spektrale Korrektur (Seite 12)
-
-## 10 Anhang
+## 9 Anhang
 
 # I. Eigenständigkeitserklärung
 
 Hiermit bestätigen wir, dass die hier vorliegende Arbeit selbstständig verfasst ist und nur die angegebenen Hilfsmittel genutzt wurden. Unter Angabe der Quellen wurde außerdem kenntlich gemacht, welche dem Wortlaut oder Sinn nach anderen Werken entnommen sind.
 
-*   **Marcel Kazemi**, XX.XX.XXXX
-*   **Marvin Bernei**, XX.XX.XXXX
-*   **Artem Grütter**, XX.XX.XXXX
+*   **Marcel Kazemi**, 09.01.2026
+*   **Marvin Bernei**, 09.01.2026
+*   **Artem Grütter**, 09.01.2026
