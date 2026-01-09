@@ -115,7 +115,7 @@ Anstatt darauf zu warten, dass ein Strahl zufällig reflektiert wird, werden all
 
 <figure style="margin:0;text-align:center;">
   <img src="Bilder/Screenshot 2025-12-16 150944.png" height="250">
-  <figcaption>Abbildung 2: Explizite Kombinatorik</figcaption>
+  <figcaption>Abbildung 2: Finaler Ansatz</figcaption>
 </figure>
 
 ### 3.2 Szenen- / Versuchsaufbau
@@ -308,15 +308,15 @@ Für die konzeptionelle Auslegung der zylindrischen Linsenelemente wurde ein rea
   <div style="text-align: center;">
     <img src="Bilder/patent.png"
          alt="Patent EP 3825750 A1"
-         style="height:350px; width:auto; object-fit:contain;">
-    <div>Abbildung X: Patent EP 3825750 A1</div>
+         style="height:300px; width:auto; object-fit:contain;">
+    <div>Abbildung 3: Patent EP 3825750 A1</div>
   </div>
 
   <div style="text-align: center;">
     <img src="Bilder/Tabelle.png"
          alt="Optische Parameter"
-         style="height:350px; width:auto; object-fit:contain;">
-    <div>Abbildung Y: Optische Parameter (Tabelle)</div>
+         style="height:300px; width:auto; object-fit:contain;">
+    <div>Abbildung 4: Optische Parameter (Tabelle)</div>
   </div>
 
 </div>
@@ -352,13 +352,14 @@ In den definierten Testszenen treten reproduzierbar Lens-Flares in Form von Ghos
 
 *   **Positionsabhängigkeit:** Bei Lichtquellen nahe des Bildzentrums entstehen symmetrisch angeordnete Ghosts entlang der optischen Achse. Wird die Lichtquelle zum Rand verschoben, verlagern sich die Artefakte und werden durch das Objektivgehäuse beschnitten (Vignettierung).
     *   *Zwei Lichtquellen (Abb. 5):* Überlappung der Flares.
-    *   *Lichtquelle befindet sich nicht im Bild  (Abb. 3):* Nur Flares im Bild sichtbar
+    *   *Lichtquelle befindet sich nicht im Bild  (Abb. 6):* Nur Flares im Bild sichtbar
 *   **Apertur-Einfluss:** Die Form der Artefakte entspricht näherungsweise der Projektion der Blendenöffnung. Größere Aperturen führen zu weicheren Artefakten, während kleine Aperturen scharfe Konturen erzeugen.
 *   **Qualitätssteigerung:**
-    *   *Baseline (Abb. 6):* Überhöhte Intensität und starkes Rauschen.
-    *   *Fresnel-Korrektur (Abb. 7):* Realistische Intensitätsabnahme.
-    *   *Sampling (Abb. 8):* Konvergenz und Rauschunterdrückung durch erhöhte Samplezahlen.
-    *   *Spektrale Korrektur (Abb. 9):* Plausible Farbsäume (chromatische Aberration) ohne falsche Muster.
+    *   *Baseline (Abb. 7):* Überhöhte Intensität und starkes Rauschen.
+    *   *Fresnel-Korrektur (Abb. 8):* Realistische Intensitätsabnahme.
+    *   *Sampling (Abb. 9):* Konvergenz und Rauschunterdrückung durch erhöhte Samplezahlen.
+    *   *Spektrale Korrektur (Abb. 10):* Weiße Flare da weißes Licht.
+    *   *Sellmeier Formel und mehrere Wellenlängen Samples (Abb. 11 vs 12)*: leichte Farbsäume um die Flares
     
   
 <div style="
@@ -371,40 +372,55 @@ In den definierten Testszenen treten reproduzierbar Lens-Flares in Form von Ghos
   <figure style="margin: 0; display: flex; flex-direction: column; align-items: center;">
     <img src="Bilder/flare-two-lightsources.png" 
          style="width: 100%; aspect-ratio: 16/9; object-fit: contain;">
-    <figcaption>Abbildung 4: Two Lightsources</figcaption>
+    <figcaption>Abbildung 5: Two Lightsources</figcaption>
   </figure>
 
   <figure style="margin: 0; display: flex; flex-direction: column; align-items: center;">
     <img src="Bilder/flare-hidden-lightsource.png" 
          style="width: 100%; aspect-ratio: 16/9; object-fit: contain;">
-    <figcaption>Abbildung 5: Lightsources out of the Picture</figcaption>
+    <figcaption>Abbildung 6: Lightsources out of the Picture</figcaption>
   </figure>
 
   <figure style="margin: 0; display: flex; flex-direction: column; align-items: center;">
     <img src="Bilder/Baseline.png" 
          style="width: 100%; aspect-ratio: 16/9; object-fit: contain;">
-    <figcaption>Abbildung 6: Baseline</figcaption>
+    <figcaption>Abbildung 7: Baseline</figcaption>
   </figure>
 
   <figure style="margin: 0; display: flex; flex-direction: column; align-items: center;">
     <img src="Bilder/Fresnel.png" 
          style="width: 100%; aspect-ratio: 16/9; object-fit: contain;">
-    <figcaption>Abbildung 7: Mit Fresnel</figcaption>
+    <figcaption>Abbildung 8: Mit Fresnel</figcaption>
   </figure>
 
   <figure style="margin: 0; display: flex; flex-direction: column; align-items: center;">
     <img src="Bilder/High Sampling.png" 
          style="width: 100%; aspect-ratio: 16/9; object-fit: contain;">
-    <figcaption>Abbildung 8: High Sampling</figcaption>
+    <figcaption>Abbildung 9: High Sampling</figcaption>
   </figure>
 
   <figure style="margin: 0; display: flex; flex-direction: column; align-items: center;">
     <img src="Bilder/Spektral.png" 
          style="width: 100%; aspect-ratio: 16/9; object-fit: contain;">
-    <figcaption>Abbildung 9: Spektral korrigiert</figcaption>
+    <figcaption>Abbildung 10: Spektral korrigiert</figcaption>
   </figure>
 
 </div>
+
+<div style="display: flex; justify-content: center; gap: 1rem;">
+
+  <div style="text-align: center;">
+    <img src="Bilder/Screenshot 2026-01-08 181423.png" height="250" alt="Ohne Sellmeier">
+    <div>Abbildung 11: Ohne Sellmeier</div>
+  </div>
+
+  <div style="text-align: center;">
+    <img src="Bilder/Screenshot 2026-01-08 181001.png" height="250" alt="Mit Sellmeier">
+    <div>Abbildung 12: Mit Sellmeier</div>
+  </div>
+
+</div>
+
 
 
 ### 5.2 Auswertung
@@ -419,21 +435,6 @@ Besonders auf der CPU ist das Rendering sehr zeitaufwändig, da für die physika
 Die implementierte Lösung zeigt, dass die Beschränkung auf Reflexionen zweiter Ordnung einen hervorragenden Kompromiss zwischen visueller Qualität und Rechenaufwand darstellt. Die Ghost-Artefakte decken sich phänomenologisch mit Beobachtungen an realen Objektiven. Die sichtbaren farbigen Ränder (Dispersion) bestätigen die korrekte Implementierung der Sellmeier-Gleichung. Diese Gleichung macht den Brechungsindex wellenlängenabhängig.
 Dadurch werden verschiedene Farben unterschiedlich stark gebrochen und reflektiert.
 Bei mehrfachen internen Reflexionen in der Linse (Lens-Flares) laufen Rot, Grün und Blau leicht unterschiedliche Wege, treffen an verschiedenen Positionen und mit unterschiedlicher Intensität auf den Sensor und das erzeugt leichte Farbsäume um die Flares. Das verbleibende Rauschen in den Flares ist inhärent für Monte-Carlo-Verfahren, bei denen nur ein kleiner Raumwinkel des Lichts tatsächlich den Sensor erreicht.
-
-<div style="display: flex; justify-content: center; gap: 1rem;">
-
-  <div style="text-align: center;">
-    <img src="Bilder/Screenshot 2026-01-08 181423.png" height="250" alt="Ohne Sellmeier">
-    <div>Abbildung 10: Ohne Sellmeier</div>
-  </div>
-
-  <div style="text-align: center;">
-    <img src="Bilder/Screenshot 2026-01-08 181001.png" height="250" alt="Mit Sellmeier">
-    <div>Abbildung 11: Mit Sellmeier</div>
-  </div>
-
-</div>
-
 
 ### 6.2 Fehlerbetrachtung
 *   **Sampling-Rauschen:** Trotz hoher Samplezahlen verbleibt hochfrequentes Rauschen in den Randbereichen der Flares. Hier könnten fortgeschrittene Sampling-Methoden (z.B. Metropolis Light Transport) Abhilfe schaffen.
