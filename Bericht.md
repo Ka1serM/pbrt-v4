@@ -296,17 +296,30 @@ Die Schnittberechnung mit zylindrischen Linsenflächen unterscheidet sich grundl
 ### Fokusberechnung und Astigmatismus
 
 Ein zentrales Problem bei zylindrischen Linsen ist die Fokusberechnung. Durch den entstehenden Astigmatismus existiert kein singulärer Fokuspunkt, an dem beide Raumrichtungen gleichzeitig scharf abgebildet werden. Stattdessen ergeben sich unterschiedliche Fokuslagen für die horizontale und vertikale Achse.
-
+>
 Das in PBRT verwendete Fokusmodell basiert auf einer Thick-Lens-Approximation und setzt Rotationssymmetrie voraus. Diese Annahme ist für zylindrische oder anamorphotische Linsen nicht erfüllt und führt in der Praxis zu instabilen Fokuslagen sowie zu unscharfen oder verzerrten Lens-Flares.
 
 #### Wahl des Referenzobjektivs
 
 Für die konzeptionelle Auslegung der zylindrischen Linsenelemente wurde ein reales anamorphotisches Objektivdesign aus der Patentliteratur herangezogen. Als Referenz diente das europäische Patent **EP 3825750 A1**, das sich durch einen vergleichsweise übersichtlichen Aufbau auszeichnet.
 
-<figure style="margin:0;text-align:center;">
-  <img src="Bilder/patent.png" height="250">
-  <figcaption>Abbildung 3: Patent EP 3825750 A1</figcaption>
-</figure>
+<div style="justify-content: center; gap: 1rem; align-items: flex-start;">
+
+  <div style="text-align: center;">
+    <img src="Bilder/patent.png"
+         alt="Patent EP 3825750 A1"
+         style="height:350px; width:auto; object-fit:contain;">
+    <div>Abbildung X: Patent EP 3825750 A1</div>
+  </div>
+
+  <div style="text-align: center;">
+    <img src="Bilder/Tabelle.png"
+         alt="Optische Parameter"
+         style="height:350px; width:auto; object-fit:contain;">
+    <div>Abbildung Y: Optische Parameter (Tabelle)</div>
+  </div>
+
+</div>
 
 Im Gegensatz zu anderen anamorphotischen Objektiven besteht dieses Design ausschließlich aus rein zylindrischen und sphärischen Linsen, ohne komplexe asphärische Flächen oder stark gekrümmte Speziallinsen. Die Anzahl der Linsenelemente ist überschaubar, und die geometrische Struktur ist klar definiert, was eine konzeptionelle Übertragung auf das implementierte Linsensystem erleichterte. Gleichzeitig erzeugt die klare Gruppierung der zylindrischen Elemente die richtungsabhängige Abbildung, die für die anamorphotische Charakteristik entscheidend ist.
 
@@ -405,7 +418,7 @@ Besonders auf der CPU ist das Rendering sehr zeitaufwändig, da für die physika
 ### 6.1 Interpretation der Ergebnisse
 Die implementierte Lösung zeigt, dass die Beschränkung auf Reflexionen zweiter Ordnung einen hervorragenden Kompromiss zwischen visueller Qualität und Rechenaufwand darstellt. Die Ghost-Artefakte decken sich phänomenologisch mit Beobachtungen an realen Objektiven. Die sichtbaren farbigen Ränder (Dispersion) bestätigen die korrekte Implementierung der Sellmeier-Gleichung. Diese Gleichung macht den Brechungsindex wellenlängenabhängig.
 Dadurch werden verschiedene Farben unterschiedlich stark gebrochen und reflektiert.
-Bei mehrfachen internen Reflexionen in der Linse (Lens-Flares) laufen Rot, Grün und Blau leicht unterschiedliche Wege, treffen an verschiedenen Positionen und mit unterschiedlicher Intensität auf den Sensor und das erzeugt farbige Flares. Das verbleibende Rauschen in den Flares ist inhärent für Monte-Carlo-Verfahren, bei denen nur ein kleiner Raumwinkel des Lichts tatsächlich den Sensor erreicht ("Small Target Problem").
+Bei mehrfachen internen Reflexionen in der Linse (Lens-Flares) laufen Rot, Grün und Blau leicht unterschiedliche Wege, treffen an verschiedenen Positionen und mit unterschiedlicher Intensität auf den Sensor und das erzeugt leichte Farbsäume um die Flares. Das verbleibende Rauschen in den Flares ist inhärent für Monte-Carlo-Verfahren, bei denen nur ein kleiner Raumwinkel des Lichts tatsächlich den Sensor erreicht.
 
 <div style="display: flex; justify-content: center; gap: 1rem;">
 
