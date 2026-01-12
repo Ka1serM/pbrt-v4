@@ -1535,25 +1535,21 @@ bool RealisticCamera::AdvanceRayThroughElements(
     ray.o = pHit;
 
     if (!isStop) {
-        // Get refractive indices (either wavelength-dependent or simple eta)
-        Float eta_i = 1.0f; // Air by default
-        Float eta_t;
+        Float eta_i, eta_t;
         
         if (sellmeier) {
-            // Full chromatic dispersion using Sellmeier
-            if (elementIndex > 0) {
-                const LensElementInterface& prevElement = elements[elementIndex - 1];
-                eta_i = Sellmeier(wavelengthNm, prevElement.B1, prevElement.B2, prevElement.B3,
-                                prevElement.C1, prevElement.C2, prevElement.C3);
-            }
-            eta_t = Sellmeier(wavelengthNm, element.B1, element.B2, element.B3,
-                            element.C1, element.C2, element.C3);
+            eta_i = (elementIndex == 0 || element.eta == 0) ? 1.0f : 
+                    Sellmeier(wavelengthNm, element.B1, element.B2, element.B3,
+                             element.C1, element.C2, element.C3);
+            
+            eta_t = (elementIndex + 1 < elementInterfaces.size() && elements[elementIndex + 1].eta != 0) ?
+                    Sellmeier(wavelengthNm, elements[elementIndex + 1].B1, elements[elementIndex + 1].B2, 
+                             elements[elementIndex + 1].B3, elements[elementIndex + 1].C1, 
+                             elements[elementIndex + 1].C2, elements[elementIndex + 1].C3) : 1.0f;
         } else {
-            // Use simple eta values (monochromatic)
-            if (elementIndex > 0 && elements[elementIndex - 1].eta != 1.0f) {
-                eta_i = elements[elementIndex - 1].eta;
-            }
-            eta_t = element.eta;
+            eta_i = (elementIndex == 0 || element.eta == 0) ? 1 : element.eta;
+            eta_t = (elementIndex + 1 < elementInterfaces.size() && elements[elementIndex + 1].eta != 0) ? 
+                    elements[elementIndex + 1].eta : 1;
         }
         
         Vector3f wt;
