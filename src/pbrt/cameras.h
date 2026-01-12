@@ -538,13 +538,7 @@ class RealisticCamera : public CameraBase {
         std::string ToString() const;
     };
   private:
-
-    struct FlareRay {
-        Ray ray;
-        SampledSpectrum intensity;
-        Float wavelength;
-    };
-
+    
     // RealisticCamera Private Methods
     PBRT_CPU_GPU
     Float LensRearZ() const { return elementInterfaces.back().thickness; }
