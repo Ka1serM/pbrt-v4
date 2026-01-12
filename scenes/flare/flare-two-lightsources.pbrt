@@ -1,0 +1,60 @@
+Integrator "path"
+    "integer maxdepth" [ 10 ]
+    
+Transform [ 1 0 0 0  0 1 0 0  0 0 1 0  0 0 -1 1 ]
+
+Sampler "sobol"
+    "integer pixelsamples" [ 1  ] 
+
+PixelFilter "gaussian"
+    "float xradius" [ 1.0 ]
+    "float yradius" [ 1.0 ]
+
+Film "rgb"
+    "string filename" [ "flare-two.png" ]
+    "integer yresolution" [ 720 ]
+    "integer xresolution" [ 720 ]
+
+Camera "realistic"
+    "string lensfile" [ "../../lenses/dgauss.50mm.dat" ]
+    "float aperturediameter" [ 3.0 ]
+    "float focusdistance" [ 100.0 ]
+    "integer flaresamples" [ 2147483647 ]
+    "bool sellmeier" [ false ]
+
+WorldBegin
+
+# Middle-Right, Bright White
+AttributeBegin
+    Translate -8 -8 100.0 
+    AreaLightSource "diffuse"
+        "rgb L" [ 1000000000 1000000000 1000000000 ] 
+    # Small sphere to act as a point-like source
+    Shape "sphere" "float radius" [ 0.5 ]
+AttributeEnd
+
+# Middle-Right, Bright White
+AttributeBegin
+    Translate 8 8 100.0 
+    AreaLightSource "diffuse"
+        "rgb L" [ 1000000000 1000000000 1000000000 ] 
+    # Small sphere to act as a point-like source
+    Shape "sphere" "float radius" [ 0.5 ]
+AttributeEnd
+
+
+# Bottom-Left, Green/Teal
+AttributeBegin
+    Translate -2.0 -1.5 6.0
+    AreaLightSource "diffuse"
+        "rgb L" [ 200 10000 5000 ] 
+    Shape "sphere" "float radius" [ 0.5 ]
+AttributeEnd
+
+# Far Left edge. Tests edge-cutting of ghosts
+AttributeBegin
+    Translate -3.5 0.0 8.0
+    AreaLightSource "diffuse"
+        "rgb L" [ 5000 200 200 ] # Red
+    Shape "sphere" "float radius" [ 0.5 ]
+AttributeEnd
